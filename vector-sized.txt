@@ -9,7 +9,7 @@
 @version 0.6.1.0
 
 
--- | This module reexports the functionality in <a>Generic</a> which maps
+-- | This module reexports the functionality in <a>Mutable</a> which maps
 --   well to explicity sized vectors.
 --   
 --   Functions returning a vector determine the size from the type context
@@ -34,11 +34,11 @@ null :: forall v n s a. (KnownNat n) => MVector v n s a -> Bool
 
 -- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
 --   with an inferred length argument.
-slice :: forall v i n m s a p. (KnownNat i, KnownNat n, KnownNat m, MVector v a) => p i -> MVector v ((i + n) + m) s a -> MVector v n s a
+slice :: forall v i n k s a p. (KnownNat i, KnownNat n, KnownNat k, MVector v a) => p i -> MVector v ((i + n) + k) s a -> MVector v n s a
 
 -- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
 --   with an explicit length argument.
-slice' :: forall v i n m s a p. (KnownNat i, KnownNat n, KnownNat m, MVector v a) => p i -> p n -> MVector v ((i + n) + m) s a -> MVector v n s a
+slice' :: forall v i n k s a p. (KnownNat i, KnownNat n, KnownNat k, MVector v a) => p i -> p n -> MVector v ((i + n) + k) s a -> MVector v n s a
 
 -- | <i>O(1)</i> Yield all but the last element of a non-empty mutable
 --   vector without copying.
@@ -51,22 +51,22 @@ tail :: forall v n s a. (MVector v a) => MVector v (1 + n) s a -> MVector v n s 
 -- | <i>O(1)</i> Yield the first n elements. The resultant vector always
 --   contains this many elements. The length of the resultant vector is
 --   inferred from the type.
-take :: forall v n m s a. (KnownNat n, KnownNat m, MVector v a) => MVector v (n + m) s a -> MVector v n s a
+take :: forall v n k s a. (KnownNat n, KnownNat k, MVector v a) => MVector v (n + k) s a -> MVector v n s a
 
 -- | <i>O(1)</i> Yield the first n elements. The resultant vector always
 --   contains this many elements. The length of the resultant vector is
 --   given explicitly as a <a>Proxy</a> argument.
-take' :: forall v n m s a p. (KnownNat n, KnownNat m, MVector v a) => p n -> MVector v (n + m) s a -> MVector v n s a
+take' :: forall v n k s a p. (KnownNat n, KnownNat k, MVector v a) => p n -> MVector v (n + k) s a -> MVector v n s a
 
 -- | <i>O(1)</i> Yield all but the the first n elements. The given vector
 --   must contain at least this many elements The length of the resultant
 --   vector is inferred from the type.
-drop :: forall v n m s a. (KnownNat n, KnownNat m, MVector v a) => MVector v (n + m) s a -> MVector v m s a
+drop :: forall v n k s a. (KnownNat n, KnownNat k, MVector v a) => MVector v (n + k) s a -> MVector v k s a
 
 -- | <i>O(1)</i> Yield all but the the first n elements. The given vector
 --   must contain at least this many elements The length of the resultant
 --   vector is givel explicitly as a <a>Proxy</a> argument.
-drop' :: forall v n m s a p. (KnownNat n, KnownNat m, MVector v a) => p n -> MVector v (n + m) s a -> MVector v m s a
+drop' :: forall v n k s a p. (KnownNat n, KnownNat k, MVector v a) => p n -> MVector v (n + k) s a -> MVector v k s a
 
 -- | <i>O(1)</i> Yield the first n elements paired with the remainder
 --   without copying. The lengths of the resultant vector are inferred from
@@ -77,6 +77,11 @@ splitAt :: forall v n m s a. (KnownNat n, KnownNat m, MVector v a) => MVector v 
 --   without copying. The length of the first resultant vector is passed
 --   explicitly as a <a>Proxy</a> argument.
 splitAt' :: forall v n m s a p. (KnownNat n, KnownNat m, MVector v a) => p n -> MVector v (n + m) s a -> (MVector v n s a, MVector v m s a)
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is inferred from the type.
+overlaps :: forall v n k s a. (KnownNat n, KnownNat k, MVector v a) => MVector v n s a -> MVector v k s a -> Bool
 
 -- | Create a mutable vector where the length is inferred from the type.
 new :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => m (MVector v n (PrimState m) a)
