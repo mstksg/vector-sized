@@ -159,6 +159,26 @@ exchange :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => MVector v 
 --   return the old element, using <a>Finite</a>.
 exchange' :: forall v n k a m p. (KnownNat n, KnownNat k, PrimMonad m, MVector v a) => MVector v ((n + k) + 1) (PrimState m) a -> p k -> a -> m a
 
+-- | <i>O(1)</i> Yield the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeRead :: forall v n a m. (KnownNat n, PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> Int -> m a
+
+-- | <i>O(1)</i> Replace the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeWrite :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> Int -> a -> m ()
+
+-- | <i>O(1)</i> Modify the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeModify :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> (a -> a) -> Int -> m ()
+
+-- | <i>O(1)</i> Swap the elements at a given <a>Int</a> position without
+--   bounds checking.
+unsafeSwap :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> Int -> Int -> m ()
+
+-- | <i>O(1)</i> Replace the element at a given <a>Int</a> position and
+--   return the old element. No bounds checks are performed.
+unsafeExchange :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> Int -> a -> m a
+
 -- | Compute the next (lexicographically) permutation of a given vector
 --   in-place. Returns <a>False</a> when the input is the last permutation.
 nextPermutation :: forall v n e m. (KnownNat n, Ord e, PrimMonad m, MVector v e) => MVector v n (PrimState m) e -> m Bool
@@ -174,6 +194,9 @@ copy :: (PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> MVector v n
 --   if the source vector were copied to a temporary vector and then the
 --   temporary vector was copied to the target vector.
 move :: (PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> MVector v n (PrimState m) a -> m ()
+
+-- | Copy a vector. The two vectors may not overlap. This is not checked.
+unsafeCopy :: (PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> MVector v n (PrimState m) a -> m ()
 
 -- | Convert a <a>MVector</a> into a <a>MVector</a> if it has the correct
 --   size, otherwise return Nothing.
@@ -201,18 +224,6 @@ withSized :: forall v s a r. MVector v a => v s a -> (forall n. KnownNat n => MV
 --   reference to the exact same vector in memory as the given one, and any
 --   modifications to it are also reflected in the given <a>MVector</a>.
 fromSized :: MVector v n s a -> v s a
-instance (Data.Data.Data (v s a), Data.Typeable.Internal.Typeable a, Data.Typeable.Internal.Typeable s, Data.Typeable.Internal.Typeable v, GHC.TypeNats.KnownNat n) => Data.Data.Data (Data.Vector.Generic.Mutable.Sized.MVector v n s a)
-instance Data.Functor.Classes.Ord1 (v s) => Data.Functor.Classes.Ord1 (Data.Vector.Generic.Mutable.Sized.MVector v n s)
-instance Data.Functor.Classes.Eq1 (v s) => Data.Functor.Classes.Eq1 (Data.Vector.Generic.Mutable.Sized.MVector v n s)
-instance Data.Functor.Classes.Show1 (v s) => Data.Functor.Classes.Show1 (Data.Vector.Generic.Mutable.Sized.MVector v n s)
-instance GHC.Generics.Generic (Data.Vector.Generic.Mutable.Sized.MVector v n s a)
-instance Control.DeepSeq.NFData (v s a) => Control.DeepSeq.NFData (Data.Vector.Generic.Mutable.Sized.MVector v n s a)
-instance Data.Traversable.Traversable (v s) => Data.Traversable.Traversable (Data.Vector.Generic.Mutable.Sized.MVector v n s)
-instance Data.Foldable.Foldable (v s) => Data.Foldable.Foldable (Data.Vector.Generic.Mutable.Sized.MVector v n s)
-instance GHC.Base.Functor (v s) => GHC.Base.Functor (Data.Vector.Generic.Mutable.Sized.MVector v n s)
-instance GHC.Classes.Ord (v s a) => GHC.Classes.Ord (Data.Vector.Generic.Mutable.Sized.MVector v n s a)
-instance GHC.Classes.Eq (v s a) => GHC.Classes.Eq (Data.Vector.Generic.Mutable.Sized.MVector v n s a)
-instance GHC.Show.Show (v s a) => GHC.Show.Show (Data.Vector.Generic.Mutable.Sized.MVector v n s a)
 
 
 -- | This module reexports the functionality in <a>Generic</a> which maps
@@ -877,6 +888,25 @@ withSizedList :: forall v a r. Vector v a => [a] -> (forall n. KnownNat n => Vec
 
 -- | <i>O(n)</i> Convert different vector types
 convert :: (Vector v a, Vector w a) => Vector v n a -> Vector w n a
+
+-- | <i>O(n)</i> Yield an immutable copy of the mutable vector.
+freeze :: (PrimMonad m, Vector v a) => MVector (Mutable v) n (PrimState m) a -> m (Vector v n a)
+
+-- | <i>O(n)</i> Yield a mutable copy of the immutable vector.
+thaw :: (PrimMonad m, Vector v a) => Vector v n a -> m (MVector (Mutable v) n (PrimState m) a)
+
+-- | <i>O(n)</i> Copy an immutable vector into a mutable one.
+copy :: (PrimMonad m, Vector v a) => MVector (Mutable v) n (PrimState m) a -> Vector v n a -> m ()
+
+-- | <i>O(1)</i> Unsafely convert a mutable vector to an immutable one
+--   withouy copying. The mutable vector may not be used after this
+--   operation.
+unsafeFreeze :: (PrimMonad m, Vector v a) => MVector (Mutable v) n (PrimState m) a -> m (Vector v n a)
+
+-- | <i>O(n)</i> Unsafely convert an immutable vector to a mutable one
+--   without copying. The immutable vector may not be used after this
+--   operation.
+unsafeThaw :: (PrimMonad m, Vector v a) => Vector v n a -> m (MVector (Mutable v) n (PrimState m) a)
 
 -- | Convert a <a>Vector</a> into a <a>Vector</a> if it has the correct
 --   size, otherwise return Nothing.
