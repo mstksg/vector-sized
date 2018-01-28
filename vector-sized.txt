@@ -1143,7 +1143,7 @@ unsafeCopy :: PrimMonad m => MVector n (PrimState m) a -> MVector n (PrimState m
 --   Note that this does no copying; the returned <a>MVector</a> is a
 --   reference to the exact same vector in memory as the given one, and any
 --   modifications to it are also reflected in the given <a>MVector</a>.
-toSized :: forall v n a s. KnownNat n => MVector s a -> Maybe (MVector n s a)
+toSized :: forall n a s. KnownNat n => MVector s a -> Maybe (MVector n s a)
 
 -- | Takes a <a>MVector</a> and returns a continuation providing a
 --   <a>MVector</a> with a size parameter <tt>n</tt> that is determined at
@@ -2060,7 +2060,7 @@ unsafeCopy :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> MVector 
 --   Note that this does no copying; the returned <a>MVector</a> is a
 --   reference to the exact same vector in memory as the given one, and any
 --   modifications to it are also reflected in the given <a>MVector</a>.
-toSized :: forall v n a s. (KnownNat n, Storable a) => MVector s a -> Maybe (MVector n s a)
+toSized :: forall n a s. (KnownNat n, Storable a) => MVector s a -> Maybe (MVector n s a)
 
 -- | Takes a <a>MVector</a> and returns a continuation providing a
 --   <a>MVector</a> with a size parameter <tt>n</tt> that is determined at
