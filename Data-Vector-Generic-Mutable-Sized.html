@@ -48,9 +48,9 @@ are not exported.</p></div></div><div id="synopsis"><p id="control.syn" class="c
  the exact same vector in memory as the given one, and any modifications
  to it are also reflected in the given
  <code><a href="../vector-0.12.0.1/Data-Vector-Generic-Mutable.html#v:MVector">MVector</a></code>.</p></div></div><div class="top"><p class="src"><a id="v:withSized" class="def">withSized</a> :: <span class="keyword">forall</span> v s a r. <a href="../vector-0.12.0.1/Data-Vector-Generic-Mutable-Base.html#t:MVector">MVector</a> v a =&gt; v s a -&gt; (<span class="keyword">forall</span> n. <a href="../base-4.10.1.0/GHC-TypeNats.html#t:KnownNat">KnownNat</a> n =&gt; <a href="Data-Vector-Generic-Mutable-Sized.html#t:MVector">MVector</a> v n s a -&gt; r) -&gt; r <a href="src/Data.Vector.Generic.Mutable.Sized.html#withSized" class="link">Source</a> <a href="#v:withSized" class="selflink">#</a></p><div class="doc"><p>Takes a <code><a href="../vector-0.12.0.1/Data-Vector-Generic-Mutable.html#v:MVector">MVector</a></code> and returns
- a continuation providing a <code><a href="../vector-0.12.0.1/Data-Vector-Generic-Mutable.html#v:Sized">Sized</a></code> with
- a size parameter <code>n</code> that is determined at runtime based on the length
- of the input vector.</p><p>Essentially converts a <code><a href="../vector-0.12.0.1/Data-Vector-Generic-Mutable.html#v:MVector">MVector</a></code> into
+ a continuation providing a <code><a href="Data-Vector-Generic-Mutable-Sized.html#v:MVector">MVector</a></code>
+ with a size parameter <code>n</code> that is determined at runtime based on the
+ length of the input vector.</p><p>Essentially converts a <code><a href="../vector-0.12.0.1/Data-Vector-Generic-Mutable.html#v:MVector">MVector</a></code> into
  a <code><a href="Data-Vector-Generic-Sized.html#v:MVector">MVector</a></code> with the correct size parameter
  <code>n</code>.</p><p>Note that this does no copying; the returned <code><a href="Data-Vector-Generic-Mutable-Sized.html#t:MVector">MVector</a></code> is a reference to
  the exact same vector in memory as the given one, and any modifications
