@@ -179,10 +179,6 @@ unsafeSwap :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => MVector 
 --   return the old element. No bounds checks are performed.
 unsafeExchange :: forall v n m a. (KnownNat n, PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> Int -> a -> m a
 
--- | Compute the next (lexicographically) permutation of a given vector
---   in-place. Returns <a>False</a> when the input is the last permutation.
-nextPermutation :: forall v n e m. (KnownNat n, Ord e, PrimMonad m, MVector v e) => MVector v n (PrimState m) e -> m Bool
-
 -- | Set all elements of the vector to the given value.
 set :: (PrimMonad m, MVector v a) => MVector v n (PrimState m) a -> a -> m ()
 
@@ -224,6 +220,432 @@ withSized :: forall v s a r. MVector v a => v s a -> (forall n. KnownNat n => MV
 --   reference to the exact same vector in memory as the given one, and any
 --   modifications to it are also reflected in the given <a>MVector</a>.
 fromSized :: MVector v n s a -> v s a
+
+
+-- | This module re-exports the functionality in <a>Sized</a> specialized
+--   to <a>Mutable</a>
+--   
+--   Functions returning a vector determine the size from the type context
+--   unless they have a <tt>'</tt> suffix in which case they take an
+--   explicit <a>Proxy</a> argument.
+--   
+--   Functions where the resultant vector size is not know until compile
+--   time are not exported.
+module Data.Vector.Storable.Mutable.Sized
+
+-- | <a>Vector</a> specialized to use <a>Mutable</a>
+type MVector = MVector MVector
+
+-- | <i>O(1)</i> Yield the length of the mutable vector as an <a>Int</a>.
+length :: forall n s a. (KnownNat n) => MVector n s a -> Int
+
+-- | <i>O(1)</i> Yield the length of the mutable vector as a <a>Proxy</a>.
+length' :: forall n s a. (KnownNat n) => MVector n s a -> Proxy n
+
+-- | <i>O(1)</i> Check whether the mutable vector is empty
+null :: forall n s a. (KnownNat n) => MVector n s a -> Bool
+
+-- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
+--   with an inferred length argument.
+slice :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k, Storable a) => p i -> MVector ((i + n) + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
+--   with an explicit length argument.
+slice' :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k, Storable a) => p i -> p n -> MVector ((i + n) + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield all but the last element of a non-empty mutable
+--   vector without copying.
+init :: forall n s a. Storable a => MVector (n + 1) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield all but the first element of a non-empty mutable
+--   vector without copying.
+tail :: forall n s a. Storable a => MVector (1 + n) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield the first n elements. The resultant vector always
+--   contains this many elements. The length of the resultant vector is
+--   inferred from the type.
+take :: forall n k s a. (KnownNat n, KnownNat k, Storable a) => MVector (n + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield the first n elements. The resultant vector always
+--   contains this many elements. The length of the resultant vector is
+--   given explicitly as a <a>Proxy</a> argument.
+take' :: forall n k s a p. (KnownNat n, KnownNat k, Storable a) => p n -> MVector (n + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is inferred from the type.
+drop :: forall n k s a. (KnownNat n, KnownNat k, Storable a) => MVector (n + k) s a -> MVector k s a
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is givel explicitly as a <a>Proxy</a> argument.
+drop' :: forall n k s a p. (KnownNat n, KnownNat k, Storable a) => p n -> MVector (n + k) s a -> MVector k s a
+
+-- | <i>O(1)</i> Yield the first n elements paired with the remainder
+--   without copying. The lengths of the resultant vector are inferred from
+--   the type.
+splitAt :: forall n m s a. (KnownNat n, KnownNat m, Storable a) => MVector (n + m) s a -> (MVector n s a, MVector m s a)
+
+-- | <i>O(1)</i> Yield the first n elements paired with the remainder
+--   without copying. The length of the first resultant vector is passed
+--   explicitly as a <a>Proxy</a> argument.
+splitAt' :: forall n m s a p. (KnownNat n, KnownNat m, Storable a) => p n -> MVector (n + m) s a -> (MVector n s a, MVector m s a)
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is inferred from the type.
+overlaps :: forall n k s a. (KnownNat n, KnownNat k, Storable a) => MVector n s a -> MVector k s a -> Bool
+
+-- | Create a mutable vector where the length is inferred from the type.
+new :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is inferred from the type.
+--   The memory is not initialized.
+unsafeNew :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is inferred from the type and
+--   fill it with an initial value.
+replicate :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => a -> m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is given explicitly as a
+--   <a>Proxy</a> argument and fill it with an initial value.
+replicate' :: forall n m a p. (KnownNat n, PrimMonad m, Storable a) => p n -> a -> m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is inferred from the type and
+--   fill it with values produced by repeatedly executing the monadic
+--   action.
+replicateM :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => m a -> m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is given explicitly as a
+--   <a>Proxy</a> argument and fill it with values produced by repeatedly
+--   executing the monadic action.
+replicateM' :: forall n m a p. (KnownNat n, PrimMonad m, Storable a) => p n -> m a -> m (MVector n (PrimState m) a)
+
+-- | Create a copy of a mutable vector.
+clone :: forall n m a. (PrimMonad m, Storable a) => MVector n (PrimState m) a -> m (MVector n (PrimState m) a)
+
+-- | Grow a mutable vector by an amount given explicitly as a <a>Proxy</a>
+--   argument.
+grow :: forall n k m a p. (KnownNat k, PrimMonad m, Storable a) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
+
+-- | Grow a mutable vector (from the front) by an amount given explicitly
+--   as a <a>Proxy</a> argument.
+growFront :: forall n k m a p. (KnownNat k, PrimMonad m, Storable a) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
+
+-- | Reset all elements of the vector to some undefined value, clearing all
+--   references to external objects.
+clear :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> m ()
+
+-- | <i>O(1)</i> Yield the element at a given type-safe position using
+--   <a>Finite</a>.
+read :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> m a
+
+-- | <i>O(1)</i> Yield the element at a given type-safe position using
+--   <a>Proxy</a>.
+read' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> p k -> m a
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position using
+--   <a>Finite</a>.
+write :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> a -> m ()
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position using
+--   <a>Proxy</a>.
+write' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m ()
+
+-- | <i>O(1)</i> Modify the element at a given type-safe position using
+--   <a>Finite</a>.
+modify :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> (a -> a) -> Finite n -> m ()
+
+-- | <i>O(1)</i> Modify the element at a given type-safe position using
+--   <a>Proxy</a>.
+modify' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> (a -> a) -> p k -> m ()
+
+-- | <i>O(1)</i> Swap the elements at a given type-safe position using
+--   <a>Finite</a>s.
+swap :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> Finite n -> m ()
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position and
+--   return the old element, using <a>Finite</a>.
+exchange :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> a -> m a
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position and
+--   return the old element, using <a>Finite</a>.
+exchange' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m a
+
+-- | <i>O(1)</i> Yield the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeRead :: forall n a m. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> m a
+
+-- | <i>O(1)</i> Replace the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeWrite :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> a -> m ()
+
+-- | <i>O(1)</i> Modify the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeModify :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> (a -> a) -> Int -> m ()
+
+-- | <i>O(1)</i> Swap the elements at a given <a>Int</a> position without
+--   bounds checking.
+unsafeSwap :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> Int -> m ()
+
+-- | <i>O(1)</i> Replace the element at a given <a>Int</a> position and
+--   return the old element. No bounds checks are performed.
+unsafeExchange :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> a -> m a
+
+-- | Set all elements of the vector to the given value.
+set :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> a -> m ()
+
+-- | Copy a vector. The two vectors may not overlap.
+copy :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
+
+-- | Move the contents of a vector. If the two vectors do not overlap, this
+--   is equivalent to <a>copy</a>. Otherwise, the copying is performed as
+--   if the source vector were copied to a temporary vector and then the
+--   temporary vector was copied to the target vector.
+move :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
+
+-- | Copy a vector. The two vectors may not overlap. This is not checked.
+unsafeCopy :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
+
+-- | Convert a <a>MVector</a> into a <a>MVector</a> if it has the correct
+--   size, otherwise return Nothing.
+--   
+--   Note that this does no copying; the returned <a>MVector</a> is a
+--   reference to the exact same vector in memory as the given one, and any
+--   modifications to it are also reflected in the given <a>MVector</a>.
+toSized :: forall n a s. (KnownNat n, Storable a) => MVector s a -> Maybe (MVector n s a)
+
+-- | Takes a <a>MVector</a> and returns a continuation providing a
+--   <a>MVector</a> with a size parameter <tt>n</tt> that is determined at
+--   runtime based on the length of the input vector.
+--   
+--   Essentially converts a <a>MVector</a> into a <a>MVector</a> with the
+--   correct size parameter <tt>n</tt>.
+--   
+--   Note that this does no copying; the returned <a>MVector</a> is a
+--   reference to the exact same vector in memory as the given one, and any
+--   modifications to it are also reflected in the given <a>MVector</a>.
+withSized :: forall s a r. Storable a => MVector s a -> (forall n. KnownNat n => MVector n s a -> r) -> r
+
+-- | Convert a <a>MVector</a> into a <a>MVector</a>.
+--   
+--   Note that this does no copying; the returned <a>MVector</a> is a
+--   reference to the exact same vector in memory as the given one, and any
+--   modifications to it are also reflected in the given <a>MVector</a>.
+fromSized :: MVector n s a -> MVector s a
+
+
+-- | This module re-exports the functionality in <a>Sized</a> specialized
+--   to <a>Mutable</a>
+--   
+--   Functions returning a vector determine the size from the type context
+--   unless they have a <tt>'</tt> suffix in which case they take an
+--   explicit <a>Proxy</a> argument.
+--   
+--   Functions where the resultant vector size is not know until compile
+--   time are not exported.
+module Data.Vector.Mutable.Sized
+
+-- | <a>Vector</a> specialized to use <a>Mutable</a>
+type MVector = MVector MVector
+
+-- | <i>O(1)</i> Yield the length of the mutable vector as an <a>Int</a>.
+length :: forall n s a. (KnownNat n) => MVector n s a -> Int
+
+-- | <i>O(1)</i> Yield the length of the mutable vector as a <a>Proxy</a>.
+length' :: forall n s a. (KnownNat n) => MVector n s a -> Proxy n
+
+-- | <i>O(1)</i> Check whether the mutable vector is empty
+null :: forall n s a. (KnownNat n) => MVector n s a -> Bool
+
+-- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
+--   with an inferred length argument.
+slice :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k) => p i -> MVector ((i + n) + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
+--   with an explicit length argument.
+slice' :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k) => p i -> p n -> MVector ((i + n) + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield all but the last element of a non-empty mutable
+--   vector without copying.
+init :: forall n s a. MVector (n + 1) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield all but the first element of a non-empty mutable
+--   vector without copying.
+tail :: forall n s a. MVector (1 + n) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield the first n elements. The resultant vector always
+--   contains this many elements. The length of the resultant vector is
+--   inferred from the type.
+take :: forall n k s a. (KnownNat n, KnownNat k) => MVector (n + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield the first n elements. The resultant vector always
+--   contains this many elements. The length of the resultant vector is
+--   given explicitly as a <a>Proxy</a> argument.
+take' :: forall n k s a p. (KnownNat n, KnownNat k) => p n -> MVector (n + k) s a -> MVector n s a
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is inferred from the type.
+drop :: forall n k s a. (KnownNat n, KnownNat k) => MVector (n + k) s a -> MVector k s a
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is givel explicitly as a <a>Proxy</a> argument.
+drop' :: forall n k s a p. (KnownNat n, KnownNat k) => p n -> MVector (n + k) s a -> MVector k s a
+
+-- | <i>O(1)</i> Yield the first n elements paired with the remainder
+--   without copying. The lengths of the resultant vector are inferred from
+--   the type.
+splitAt :: forall n m s a. (KnownNat n, KnownNat m) => MVector (n + m) s a -> (MVector n s a, MVector m s a)
+
+-- | <i>O(1)</i> Yield the first n elements paired with the remainder
+--   without copying. The length of the first resultant vector is passed
+--   explicitly as a <a>Proxy</a> argument.
+splitAt' :: forall n m s a p. (KnownNat n, KnownNat m) => p n -> MVector (n + m) s a -> (MVector n s a, MVector m s a)
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is inferred from the type.
+overlaps :: forall n k s a. (KnownNat n, KnownNat k) => MVector n s a -> MVector k s a -> Bool
+
+-- | Create a mutable vector where the length is inferred from the type.
+new :: forall n m a. (KnownNat n, PrimMonad m) => m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is inferred from the type.
+--   The memory is not initialized.
+unsafeNew :: forall n m a. (KnownNat n, PrimMonad m) => m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is inferred from the type and
+--   fill it with an initial value.
+replicate :: forall n m a. (KnownNat n, PrimMonad m) => a -> m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is given explicitly as a
+--   <a>Proxy</a> argument and fill it with an initial value.
+replicate' :: forall n m a p. (KnownNat n, PrimMonad m) => p n -> a -> m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is inferred from the type and
+--   fill it with values produced by repeatedly executing the monadic
+--   action.
+replicateM :: forall n m a. (KnownNat n, PrimMonad m) => m a -> m (MVector n (PrimState m) a)
+
+-- | Create a mutable vector where the length is given explicitly as a
+--   <a>Proxy</a> argument and fill it with values produced by repeatedly
+--   executing the monadic action.
+replicateM' :: forall n m a p. (KnownNat n, PrimMonad m) => p n -> m a -> m (MVector n (PrimState m) a)
+
+-- | Create a copy of a mutable vector.
+clone :: forall n m a. PrimMonad m => MVector n (PrimState m) a -> m (MVector n (PrimState m) a)
+
+-- | Grow a mutable vector by an amount given explicitly as a <a>Proxy</a>
+--   argument.
+grow :: forall n k m a p. (KnownNat k, PrimMonad m) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
+
+-- | Grow a mutable vector (from the front) by an amount given explicitly
+--   as a <a>Proxy</a> argument.
+growFront :: forall n k m a p. (KnownNat k, PrimMonad m) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
+
+-- | Reset all elements of the vector to some undefined value, clearing all
+--   references to external objects.
+clear :: PrimMonad m => MVector n (PrimState m) a -> m ()
+
+-- | <i>O(1)</i> Yield the element at a given type-safe position using
+--   <a>Finite</a>.
+read :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> m a
+
+-- | <i>O(1)</i> Yield the element at a given type-safe position using
+--   <a>Proxy</a>.
+read' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> p k -> m a
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position using
+--   <a>Finite</a>.
+write :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> a -> m ()
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position using
+--   <a>Proxy</a>.
+write' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m ()
+
+-- | <i>O(1)</i> Modify the element at a given type-safe position using
+--   <a>Finite</a>.
+modify :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> (a -> a) -> Finite n -> m ()
+
+-- | <i>O(1)</i> Modify the element at a given type-safe position using
+--   <a>Proxy</a>.
+modify' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> (a -> a) -> p k -> m ()
+
+-- | <i>O(1)</i> Swap the elements at a given type-safe position using
+--   <a>Finite</a>s.
+swap :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> Finite n -> m ()
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position and
+--   return the old element, using <a>Finite</a>.
+exchange :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> a -> m a
+
+-- | <i>O(1)</i> Replace the element at a given type-safe position and
+--   return the old element, using <a>Finite</a>.
+exchange' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m a
+
+-- | <i>O(1)</i> Yield the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeRead :: forall n a m. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> m a
+
+-- | <i>O(1)</i> Replace the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeWrite :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> a -> m ()
+
+-- | <i>O(1)</i> Modify the element at a given <a>Int</a> position without
+--   bounds checking.
+unsafeModify :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> (a -> a) -> Int -> m ()
+
+-- | <i>O(1)</i> Swap the elements at a given <a>Int</a> position without
+--   bounds checking.
+unsafeSwap :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> Int -> m ()
+
+-- | <i>O(1)</i> Replace the element at a given <a>Int</a> position and
+--   return the old element. No bounds checks are performed.
+unsafeExchange :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> a -> m a
+
+-- | Set all elements of the vector to the given value.
+set :: PrimMonad m => MVector n (PrimState m) a -> a -> m ()
+
+-- | Copy a vector. The two vectors may not overlap.
+copy :: PrimMonad m => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
+
+-- | Move the contents of a vector. If the two vectors do not overlap, this
+--   is equivalent to <a>copy</a>. Otherwise, the copying is performed as
+--   if the source vector were copied to a temporary vector and then the
+--   temporary vector was copied to the target vector.
+move :: PrimMonad m => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
+
+-- | Copy a vector. The two vectors may not overlap. This is not checked.
+unsafeCopy :: PrimMonad m => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
+
+-- | Convert a <a>MVector</a> into a <a>MVector</a> if it has the correct
+--   size, otherwise return Nothing.
+--   
+--   Note that this does no copying; the returned <a>MVector</a> is a
+--   reference to the exact same vector in memory as the given one, and any
+--   modifications to it are also reflected in the given <a>MVector</a>.
+toSized :: forall n a s. KnownNat n => MVector s a -> Maybe (MVector n s a)
+
+-- | Takes a <a>MVector</a> and returns a continuation providing a
+--   <a>MVector</a> with a size parameter <tt>n</tt> that is determined at
+--   runtime based on the length of the input vector.
+--   
+--   Essentially converts a <a>MVector</a> into a <a>MVector</a> with the
+--   correct size parameter <tt>n</tt>.
+--   
+--   Note that this does no copying; the returned <a>MVector</a> is a
+--   reference to the exact same vector in memory as the given one, and any
+--   modifications to it are also reflected in the given <a>MVector</a>.
+withSized :: forall s a r. MVector s a -> (forall n. KnownNat n => MVector n s a -> r) -> r
+
+-- | Convert a <a>MVector</a> into a <a>MVector</a>.
+--   
+--   Note that this does no copying; the returned <a>MVector</a> is a
+--   reference to the exact same vector in memory as the given one, and any
+--   modifications to it are also reflected in the given <a>MVector</a>.
+fromSized :: MVector n s a -> MVector s a
 
 
 -- | This module reexports the functionality in <a>Generic</a> which maps
@@ -927,7 +1349,7 @@ fromSized :: Vector v n a -> v a
 -- | Apply a function on unsized vectors to a sized vector. The function
 --   must preserve the size of the vector, this is not checked.
 withVectorUnsafe :: forall a b v w (n :: Nat). (Vector v a, Vector w b) => (v a -> w b) -> Vector v n a -> Vector w n b
-instance (Data.Data.Data (v a), Data.Typeable.Internal.Typeable a, Data.Typeable.Internal.Typeable v, GHC.TypeNats.KnownNat n) => Data.Data.Data (Data.Vector.Generic.Sized.Vector v n a)
+instance (Data.Data.Data (v a), Data.Typeable.Internal.Typeable a, Data.Typeable.Internal.Typeable v, GHC.TypeLits.KnownNat n) => Data.Data.Data (Data.Vector.Generic.Sized.Vector v n a)
 instance Data.Functor.Classes.Ord1 v => Data.Functor.Classes.Ord1 (Data.Vector.Generic.Sized.Vector v n)
 instance Data.Functor.Classes.Eq1 v => Data.Functor.Classes.Eq1 (Data.Vector.Generic.Sized.Vector v n)
 instance Data.Functor.Classes.Show1 v => Data.Functor.Classes.Show1 (Data.Vector.Generic.Sized.Vector v n)
@@ -939,1147 +1361,13 @@ instance GHC.Base.Functor v => GHC.Base.Functor (Data.Vector.Generic.Sized.Vecto
 instance GHC.Classes.Ord (v a) => GHC.Classes.Ord (Data.Vector.Generic.Sized.Vector v n a)
 instance GHC.Classes.Eq (v a) => GHC.Classes.Eq (Data.Vector.Generic.Sized.Vector v n a)
 instance GHC.Show.Show (v a) => GHC.Show.Show (Data.Vector.Generic.Sized.Vector v n a)
-instance (GHC.TypeNats.KnownNat n, Foreign.Storable.Storable a, Data.Vector.Generic.Base.Vector v a) => Foreign.Storable.Storable (Data.Vector.Generic.Sized.Vector v n a)
-instance GHC.TypeNats.KnownNat n => GHC.Base.Applicative (Data.Vector.Generic.Sized.Vector Data.Vector.Vector n)
-instance (GHC.Base.Monoid m, Data.Vector.Generic.Base.Vector v m, GHC.TypeNats.KnownNat n) => GHC.Base.Monoid (Data.Vector.Generic.Sized.Vector v n m)
+instance (GHC.TypeLits.KnownNat n, Foreign.Storable.Storable a, Data.Vector.Generic.Base.Vector v a) => Foreign.Storable.Storable (Data.Vector.Generic.Sized.Vector v n a)
+instance GHC.TypeLits.KnownNat n => GHC.Base.Applicative (Data.Vector.Generic.Sized.Vector Data.Vector.Vector n)
+instance (GHC.Base.Monoid m, Data.Vector.Generic.Base.Vector v m, GHC.TypeLits.KnownNat n) => GHC.Base.Monoid (Data.Vector.Generic.Sized.Vector v n m)
 instance Data.Vector.Generic.Base.Vector v m => GHC.Base.Monoid (Data.Vector.Generic.Sized.Vector v 0 m)
-instance (Data.Vector.Generic.Base.Vector v a, GHC.Num.Num a, GHC.TypeNats.KnownNat n) => GHC.Num.Num (Data.Vector.Generic.Sized.Vector v n a)
-instance (Data.Vector.Generic.Base.Vector v a, GHC.Real.Fractional a, GHC.TypeNats.KnownNat n) => GHC.Real.Fractional (Data.Vector.Generic.Sized.Vector v n a)
-instance (Data.Vector.Generic.Base.Vector v a, GHC.Float.Floating a, GHC.TypeNats.KnownNat n) => GHC.Float.Floating (Data.Vector.Generic.Sized.Vector v n a)
-
-
--- | This module re-exports the functionality in <a>Sized</a> specialized
---   to <a>Mutable</a>
---   
---   Functions returning a vector determine the size from the type context
---   unless they have a <tt>'</tt> suffix in which case they take an
---   explicit <a>Proxy</a> argument.
---   
---   Functions where the resultant vector size is not know until compile
---   time are not exported.
-module Data.Vector.Mutable.Sized
-
--- | <a>Vector</a> specialized to use <a>Mutable</a>
-type MVector = MVector MVector
-
--- | <i>O(1)</i> Yield the length of the mutable vector as an <a>Int</a>.
-length :: forall n s a. (KnownNat n) => MVector n s a -> Int
-
--- | <i>O(1)</i> Yield the length of the mutable vector as a <a>Proxy</a>.
-length' :: forall n s a. (KnownNat n) => MVector n s a -> Proxy n
-
--- | <i>O(1)</i> Check whether the mutable vector is empty
-null :: forall n s a. (KnownNat n) => MVector n s a -> Bool
-
--- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
---   with an inferred length argument.
-slice :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k) => p i -> MVector ((i + n) + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
---   with an explicit length argument.
-slice' :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k) => p i -> p n -> MVector ((i + n) + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield all but the last element of a non-empty mutable
---   vector without copying.
-init :: forall n s a. () => MVector (n + 1) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield all but the first element of a non-empty mutable
---   vector without copying.
-tail :: forall n s a. () => MVector (1 + n) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield the first n elements. The resultant vector always
---   contains this many elements. The length of the resultant vector is
---   inferred from the type.
-take :: forall n k s a. (KnownNat n, KnownNat k) => MVector (n + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield the first n elements. The resultant vector always
---   contains this many elements. The length of the resultant vector is
---   given explicitly as a <a>Proxy</a> argument.
-take' :: forall n k s a p. (KnownNat n, KnownNat k) => p n -> MVector (n + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is inferred from the type.
-drop :: forall n k s a. (KnownNat n, KnownNat k) => MVector (n + k) s a -> MVector k s a
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is givel explicitly as a <a>Proxy</a> argument.
-drop' :: forall n k s a p. (KnownNat n, KnownNat k) => p n -> MVector (n + k) s a -> MVector k s a
-
--- | <i>O(1)</i> Yield the first n elements paired with the remainder
---   without copying. The lengths of the resultant vector are inferred from
---   the type.
-splitAt :: forall n m s a. (KnownNat n, KnownNat m) => MVector (n + m) s a -> (MVector n s a, MVector m s a)
-
--- | <i>O(1)</i> Yield the first n elements paired with the remainder
---   without copying. The length of the first resultant vector is passed
---   explicitly as a <a>Proxy</a> argument.
-splitAt' :: forall n m s a p. (KnownNat n, KnownNat m) => p n -> MVector (n + m) s a -> (MVector n s a, MVector m s a)
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is inferred from the type.
-overlaps :: forall n k s a. (KnownNat n, KnownNat k) => MVector n s a -> MVector k s a -> Bool
-
--- | Create a mutable vector where the length is inferred from the type.
-new :: forall n m a. (KnownNat n, PrimMonad m) => m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is inferred from the type.
---   The memory is not initialized.
-unsafeNew :: forall n m a. (KnownNat n, PrimMonad m) => m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is inferred from the type and
---   fill it with an initial value.
-replicate :: forall n m a. (KnownNat n, PrimMonad m) => a -> m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is given explicitly as a
---   <a>Proxy</a> argument and fill it with an initial value.
-replicate' :: forall n m a p. (KnownNat n, PrimMonad m) => p n -> a -> m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is inferred from the type and
---   fill it with values produced by repeatedly executing the monadic
---   action.
-replicateM :: forall n m a. (KnownNat n, PrimMonad m) => m a -> m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is given explicitly as a
---   <a>Proxy</a> argument and fill it with values produced by repeatedly
---   executing the monadic action.
-replicateM' :: forall n m a p. (KnownNat n, PrimMonad m) => p n -> m a -> m (MVector n (PrimState m) a)
-
--- | Create a copy of a mutable vector.
-clone :: forall n m a. PrimMonad m => MVector n (PrimState m) a -> m (MVector n (PrimState m) a)
-
--- | Grow a mutable vector by an amount given explicitly as a <a>Proxy</a>
---   argument.
-grow :: forall n k m a p. (KnownNat k, PrimMonad m) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
-
--- | Grow a mutable vector (from the front) by an amount given explicitly
---   as a <a>Proxy</a> argument.
-growFront :: forall n k m a p. (KnownNat k, PrimMonad m) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
-
--- | Reset all elements of the vector to some undefined value, clearing all
---   references to external objects.
-clear :: PrimMonad m => MVector n (PrimState m) a -> m ()
-
--- | <i>O(1)</i> Yield the element at a given type-safe position using
---   <a>Finite</a>.
-read :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> m a
-
--- | <i>O(1)</i> Yield the element at a given type-safe position using
---   <a>Proxy</a>.
-read' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> p k -> m a
-
--- | <i>O(1)</i> Replace the element at a given type-safe position using
---   <a>Finite</a>.
-write :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> a -> m ()
-
--- | <i>O(1)</i> Replace the element at a given type-safe position using
---   <a>Proxy</a>.
-write' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m ()
-
--- | <i>O(1)</i> Modify the element at a given type-safe position using
---   <a>Finite</a>.
-modify :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> (a -> a) -> Finite n -> m ()
-
--- | <i>O(1)</i> Modify the element at a given type-safe position using
---   <a>Proxy</a>.
-modify' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> (a -> a) -> p k -> m ()
-
--- | <i>O(1)</i> Swap the elements at a given type-safe position using
---   <a>Finite</a>s.
-swap :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> Finite n -> m ()
-
--- | <i>O(1)</i> Replace the element at a given type-safe position and
---   return the old element, using <a>Finite</a>.
-exchange :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Finite n -> a -> m a
-
--- | <i>O(1)</i> Replace the element at a given type-safe position and
---   return the old element, using <a>Finite</a>.
-exchange' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m a
-
--- | <i>O(1)</i> Yield the element at a given <a>Int</a> position without
---   bounds checking.
-unsafeRead :: forall n a m. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> m a
-
--- | <i>O(1)</i> Replace the element at a given <a>Int</a> position without
---   bounds checking.
-unsafeWrite :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> a -> m ()
-
--- | <i>O(1)</i> Modify the element at a given <a>Int</a> position without
---   bounds checking.
-unsafeModify :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> (a -> a) -> Int -> m ()
-
--- | <i>O(1)</i> Swap the elements at a given <a>Int</a> position without
---   bounds checking.
-unsafeSwap :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> Int -> m ()
-
--- | <i>O(1)</i> Replace the element at a given <a>Int</a> position and
---   return the old element. No bounds checks are performed.
-unsafeExchange :: forall n m a. (KnownNat n, PrimMonad m) => MVector n (PrimState m) a -> Int -> a -> m a
-
--- | Compute the next (lexicographically) permutation of a given vector
---   in-place. Returns <a>False</a> when the input is the last permutation.
-nextPermutation :: forall n e m. (KnownNat n, Ord e, PrimMonad m) => MVector n (PrimState m) e -> m Bool
-
--- | Set all elements of the vector to the given value.
-set :: PrimMonad m => MVector n (PrimState m) a -> a -> m ()
-
--- | Copy a vector. The two vectors may not overlap.
-copy :: PrimMonad m => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
-
--- | Move the contents of a vector. If the two vectors do not overlap, this
---   is equivalent to <a>copy</a>. Otherwise, the copying is performed as
---   if the source vector were copied to a temporary vector and then the
---   temporary vector was copied to the target vector.
-move :: PrimMonad m => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
-
--- | Copy a vector. The two vectors may not overlap. This is not checked.
-unsafeCopy :: PrimMonad m => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
-
--- | Convert a <a>MVector</a> into a <a>MVector</a> if it has the correct
---   size, otherwise return Nothing.
---   
---   Note that this does no copying; the returned <a>MVector</a> is a
---   reference to the exact same vector in memory as the given one, and any
---   modifications to it are also reflected in the given <a>MVector</a>.
-toSized :: forall n a s. KnownNat n => MVector s a -> Maybe (MVector n s a)
-
--- | Takes a <a>MVector</a> and returns a continuation providing a
---   <a>MVector</a> with a size parameter <tt>n</tt> that is determined at
---   runtime based on the length of the input vector.
---   
---   Essentially converts a <a>MVector</a> into a <a>MVector</a> with the
---   correct size parameter <tt>n</tt>.
---   
---   Note that this does no copying; the returned <a>MVector</a> is a
---   reference to the exact same vector in memory as the given one, and any
---   modifications to it are also reflected in the given <a>MVector</a>.
-withSized :: forall s a r. () => MVector s a -> (forall n. KnownNat n => MVector n s a -> r) -> r
-
--- | Convert a <a>MVector</a> into a <a>MVector</a>.
---   
---   Note that this does no copying; the returned <a>MVector</a> is a
---   reference to the exact same vector in memory as the given one, and any
---   modifications to it are also reflected in the given <a>MVector</a>.
-fromSized :: MVector n s a -> MVector s a
-
-
--- | This module re-exports the functionality in <a>Sized</a> specialized
---   to <a>Vector</a>.
---   
---   Functions returning a vector determine the size from the type context
---   unless they have a <tt>'</tt> suffix in which case they take an
---   explicit <a>Proxy</a> argument.
---   
---   Functions where the resultant vector size is not know until compile
---   time are not exported.
-module Data.Vector.Sized
-
--- | <a>Vector</a> specialized to use <a>Vector</a>
-type Vector = Vector Vector
-
--- | <a>Vector</a> specialized to use <a>Mutable</a>
-type MVector = MVector MVector
-
--- | <i>O(1)</i> Yield the length of the vector as an <a>Int</a>.
-length :: forall n a. KnownNat n => Vector n a -> Int
-
--- | <i>O(1)</i> Yield the length of the vector as a <a>Proxy</a>.
-length' :: forall n a. KnownNat n => Vector n a -> Proxy n
-
--- | <i>O(1)</i> Safe indexing using a <a>Finite</a>.
-index :: forall n a. KnownNat n => Vector n a -> Finite n -> a
-
--- | <i>O(1)</i> Safe indexing using a <a>Proxy</a>.
-index' :: forall n m a p. (KnownNat n, KnownNat m) => Vector ((n + m) + 1) a -> p n -> a
-
--- | <i>O(1)</i> Indexing using an Int without bounds checking.
-unsafeIndex :: forall n a. KnownNat n => Vector n a -> Int -> a
-
--- | <i>O(1)</i> Yield the first element of a non-empty vector.
-head :: forall n a. Vector (1 + n) a -> a
-
--- | <i>O(1)</i> Yield the last element of a non-empty vector.
-last :: forall n a. Vector (n + 1) a -> a
-
--- | <i>O(1)</i> Safe indexing in a monad. See the documentation for
---   <a>indexM</a> for an explanation of why this is useful.
-indexM :: forall n a m. (KnownNat n, Monad m) => Vector n a -> Finite n -> m a
-
--- | <i>O(1)</i> Safe indexing in a monad using a <a>Proxy</a>. See the
---   documentation for <a>indexM</a> for an explanation of why this is
---   useful.
-indexM' :: forall n k a m p. (KnownNat n, KnownNat k, Monad m) => Vector (n + k) a -> p n -> m a
-
--- | <i>O(1)</i> Indexing using an Int without bounds checking. See the
---   documentation for <a>indexM</a> for an explanation of why this is
---   useful.
-unsafeIndexM :: forall n a m. (KnownNat n, Monad m) => Vector n a -> Int -> m a
-
--- | <i>O(1)</i> Yield the first element of a non-empty vector in a monad.
---   See the documentation for <a>indexM</a> for an explanation of why this
---   is useful.
-headM :: forall n a m. (KnownNat n, Monad m) => Vector (1 + n) a -> m a
-
--- | <i>O(1)</i> Yield the last element of a non-empty vector in a monad.
---   See the documentation for <a>indexM</a> for an explanation of why this
---   is useful.
-lastM :: forall n a m. (KnownNat n, Monad m) => Vector (n + 1) a -> m a
-
--- | <i>O(1)</i> Yield a slice of the vector without copying it with an
---   inferred length argument.
-slice :: forall i n m a p. (KnownNat i, KnownNat n, KnownNat m) => p i -> Vector ((i + n) + m) a -> Vector n a
-
--- | <i>O(1)</i> Yield a slice of the vector without copying it with an
---   explicit length argument.
-slice' :: forall i n m a p. (KnownNat i, KnownNat n, KnownNat m) => p i -> p n -> Vector ((i + n) + m) a -> Vector n a
-
--- | <i>O(1)</i> Yield all but the last element of a non-empty vector
---   without copying.
-init :: forall n a. Vector (n + 1) a -> Vector n a
-
--- | <i>O(1)</i> Yield all but the first element of a non-empty vector
---   without copying.
-tail :: forall n a. Vector (1 + n) a -> Vector n a
-
--- | <i>O(1)</i> Yield the first n elements. The resultant vector always
---   contains this many elements. The length of the resultant vector is
---   inferred from the type.
-take :: forall n m a. (KnownNat n, KnownNat m) => Vector (n + m) a -> Vector n a
-
--- | <i>O(1)</i> Yield the first n elements. The resultant vector always
---   contains this many elements. The length of the resultant vector is
---   given explicitly as a <a>Proxy</a> argument.
-take' :: forall n m a p. (KnownNat n, KnownNat m) => p n -> Vector (n + m) a -> Vector n a
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is inferred from the type.
-drop :: forall n m a. (KnownNat n, KnownNat m) => Vector (n + m) a -> Vector m a
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is givel explicitly as a <a>Proxy</a> argument.
-drop' :: forall n m a p. (KnownNat n, KnownNat m) => p n -> Vector (n + m) a -> Vector m a
-
--- | <i>O(1)</i> Yield the first n elements paired with the remainder
---   without copying. The lengths of the resultant vector are inferred from
---   the type.
-splitAt :: forall n m a. (KnownNat n, KnownNat m) => Vector (n + m) a -> (Vector n a, Vector m a)
-
--- | <i>O(1)</i> Yield the first n elements paired with the remainder
---   without copying. The length of the first resultant vector is passed
---   explicitly as a <a>Proxy</a> argument.
-splitAt' :: forall n m a p. (KnownNat n, KnownNat m) => p n -> Vector (n + m) a -> (Vector n a, Vector m a)
-
--- | <i>O(1)</i> Empty vector.
-empty :: forall a. Vector 0 a
-
--- | <i>O(1)</i> Vector with exactly one element.
-singleton :: forall a. a -> Vector 1 a
-
--- | <i>O(n)</i> Construct a vector with the same element in each position
---   where the length is inferred from the type.
-replicate :: forall n a. KnownNat n => a -> Vector n a
-
--- | <i>O(n)</i> Construct a vector with the same element in each position
---   where the length is given explicitly as a <a>Proxy</a> argument.
-replicate' :: forall n a p. KnownNat n => p n -> a -> Vector n a
-
--- | <i>O(n)</i> construct a vector of the given length by applying the
---   function to each index where the length is inferred from the type.
-generate :: forall n a. KnownNat n => (Int -> a) -> Vector n a
-
--- | <i>O(n)</i> construct a vector of the given length by applying the
---   function to each index where the length is given explicitly as a
---   <a>Proxy</a> argument.
-generate' :: forall n a p. KnownNat n => p n -> (Int -> a) -> Vector n a
-
--- | <i>O(n)</i> construct a vector of the given length by applying the
---   function to each index where the length is inferred from the type.
---   
---   The function can expect a <tt><a>Finite</a> n</tt>, meaning that its
---   input will always be between <tt>0</tt> and <tt>n - 1</tt>.
-generate_ :: forall n a. KnownNat n => (Finite n -> a) -> Vector n a
-
--- | <i>O(n)</i> Apply function n times to value. Zeroth element is
---   original value. The length is inferred from the type.
-iterateN :: forall n a. KnownNat n => (a -> a) -> a -> Vector n a
-
--- | <i>O(n)</i> Apply function n times to value. Zeroth element is
---   original value. The length is given explicitly as a <a>Proxy</a>
---   argument.
-iterateN' :: forall n a p. KnownNat n => p n -> (a -> a) -> a -> Vector n a
-
--- | <i>O(n)</i> Execute the monadic action <tt>n</tt> times and store the
---   results in a vector where <tt>n</tt> is inferred from the type.
-replicateM :: forall n m a. (KnownNat n, Monad m) => m a -> m (Vector n a)
-
--- | <i>O(n)</i> Execute the monadic action <tt>n</tt> times and store the
---   results in a vector where <tt>n</tt> is given explicitly as a
---   <a>Proxy</a> argument.
-replicateM' :: forall n m a p. (KnownNat n, Monad m) => p n -> m a -> m (Vector n a)
-
--- | <i>O(n)</i> Construct a vector of length <tt>n</tt> by applying the
---   monadic action to each index where n is inferred from the type.
-generateM :: forall n m a. (KnownNat n, Monad m) => (Int -> m a) -> m (Vector n a)
-
--- | <i>O(n)</i> Construct a vector of length <tt>n</tt> by applying the
---   monadic action to each index where n is given explicitly as a
---   <a>Proxy</a> argument.
-generateM' :: forall n m a p. (KnownNat n, Monad m) => p n -> (Int -> m a) -> m (Vector n a)
-
--- | <i>O(n)</i> Construct a vector of length <tt>n</tt> by applying the
---   monadic action to each index where n is inferred from the type.
---   
---   The function can expect a <tt><a>Finite</a> n</tt>, meaning that its
---   input will always be between <tt>0</tt> and <tt>n - 1</tt>.
-generateM_ :: forall n m a. (KnownNat n, Monad m) => (Finite n -> m a) -> m (Vector n a)
-
--- | <i>O(n)</i> Construct a vector with exactly <tt>n</tt> elements by
---   repeatedly applying the generator function to the a seed. The length,
---   <tt>n</tt>, is inferred from the type.
-unfoldrN :: forall n a b. KnownNat n => (b -> (a, b)) -> b -> Vector n a
-
--- | <i>O(n)</i> Construct a vector with exactly <tt>n</tt> elements by
---   repeatedly applying the generator function to the a seed. The length,
---   <tt>n</tt>, is given explicitly as a <a>Proxy</a> argument.
-unfoldrN' :: forall n a b p. KnownNat n => p n -> (b -> (a, b)) -> b -> Vector n a
-
--- | <i>O(n)</i> Yield a vector of length <tt>n</tt> containing the values
---   <tt>x</tt>, <tt>x+1</tt> etc. The length, <tt>n</tt>, is inferred from
---   the type.
-enumFromN :: forall n a. (KnownNat n, Num a) => a -> Vector n a
-
--- | <i>O(n)</i> Yield a vector of length <tt>n</tt> containing the values
---   <tt>x</tt>, <tt>x+1</tt> etc. The length, <tt>n</tt>, is given
---   explicitly as a <a>Proxy</a> argument.
-enumFromN' :: forall n a p. (KnownNat n, Num a) => a -> p n -> Vector n a
-
--- | <i>O(n)</i> Yield a vector of the given length containing the values
---   <tt>x</tt>, <tt>x+y</tt>, <tt>x+y+y</tt> etc. The length, <tt>n</tt>,
---   is inferred from the type.
-enumFromStepN :: forall n a. (KnownNat n, Num a) => a -> a -> Vector n a
-
--- | <i>O(n)</i> Yield a vector of the given length containing the values
---   <tt>x</tt>, <tt>x+y</tt>, <tt>x+y+y</tt> etc. The length, <tt>n</tt>,
---   is given explicitly as a <a>Proxy</a> argument.
-enumFromStepN' :: forall n a p. (KnownNat n, Num a) => a -> a -> p n -> Vector n a
-
--- | <i>O(n)</i> Prepend an element.
-cons :: forall n a. a -> Vector n a -> Vector (1 + n) a
-
--- | <i>O(n)</i> Append an element.
-snoc :: forall n a. Vector n a -> a -> Vector (n + 1) a
-
--- | <i>O(m+n)</i> Concatenate two vectors.
-(++) :: forall n m a. Vector n a -> Vector m a -> Vector (n + m) a
-
--- | <i>O(n)</i> Yield the argument but force it not to retain any extra
---   memory, possibly by copying it.
---   
---   This is especially useful when dealing with slices. For example:
---   
---   <pre>
---   force (slice 0 2 &lt;huge vector&gt;)
---   </pre>
---   
---   Here, the slice retains a reference to the huge vector. Forcing it
---   creates a copy of just the elements that belong to the slice and
---   allows the huge vector to be garbage collected.
-force :: Vector n a -> Vector n a
-
--- | <i>O(m+n)</i> For each pair <tt>(i,a)</tt> from the list, replace the
---   vector element at position <tt>i</tt> by <tt>a</tt>.
---   
---   <pre>
---   &lt;5,9,2,7&gt; // [(2,1),(0,3),(2,8)] = &lt;3,9,8,7&gt;
---   </pre>
-(//) :: Vector m a -> [(Int, a)] -> Vector m a
-
--- | <i>O(m+n)</i> For each pair <tt>(i,a)</tt> from the vector of
---   index/value pairs, replace the vector element at position <tt>i</tt>
---   by <tt>a</tt>.
---   
---   <pre>
---   update &lt;5,9,2,7&gt; &lt;(2,1),(0,3),(2,8)&gt; = &lt;3,9,8,7&gt;
---   </pre>
-update :: Vector m a -> Vector n (Int, a) -> Vector m a
-
--- | <i>O(m+n)</i> For each index <tt>i</tt> from the index vector and the
---   corresponding value <tt>a</tt> from the value vector, replace the
---   element of the initial vector at position <tt>i</tt> by <tt>a</tt>.
---   
---   <pre>
---   update_ &lt;5,9,2,7&gt;  &lt;2,0,2&gt; &lt;1,3,8&gt; = &lt;3,9,8,7&gt;
---   </pre>
---   
---   This function is useful for instances of <a>Vector</a> that cannot
---   store pairs. Otherwise, <a>update</a> is probably more convenient.
---   
---   <pre>
---   update_ xs is ys = <a>update</a> xs (<a>zip</a> is ys)
---   </pre>
-update_ :: Vector m a -> Vector n Int -> Vector n a -> Vector m a
-
--- | Same as (<a>//</a>) but without bounds checking.
-unsafeUpd :: Vector m a -> [(Int, a)] -> Vector m a
-
--- | Same as <a>update</a> but without bounds checking.
-unsafeUpdate :: Vector m a -> Vector n (Int, a) -> Vector m a
-
--- | Same as <a>update_</a> but without bounds checking.
-unsafeUpdate_ :: Vector m a -> Vector n Int -> Vector n a -> Vector m a
-
--- | <i>O(m+n)</i> For each pair <tt>(i,b)</tt> from the list, replace the
---   vector element <tt>a</tt> at position <tt>i</tt> by <tt>f a b</tt>.
---   
---   <pre>
---   accum (+) &lt;5,9,2&gt; [(2,4),(1,6),(0,3),(1,7)] = &lt;5+3, 9+6+7, 2+4&gt;
---   </pre>
-accum :: (a -> b -> a) -> Vector m a -> [(Int, b)] -> Vector m a
-
--- | <i>O(m+n)</i> For each pair <tt>(i,b)</tt> from the vector of pairs,
---   replace the vector element <tt>a</tt> at position <tt>i</tt> by <tt>f
---   a b</tt>.
---   
---   <pre>
---   accumulate (+) &lt;5,9,2&gt; &lt;(2,4),(1,6),(0,3),(1,7)&gt; = &lt;5+3, 9+6+7, 2+4&gt;
---   </pre>
-accumulate :: (a -> b -> a) -> Vector m a -> Vector n (Int, b) -> Vector m a
-
--- | <i>O(m+n)</i> For each index <tt>i</tt> from the index vector and the
---   corresponding value <tt>b</tt> from the the value vector, replace the
---   element of the initial vector at position <tt>i</tt> by <tt>f a
---   b</tt>.
---   
---   <pre>
---   accumulate_ (+) &lt;5,9,2&gt; &lt;2,1,0,1&gt; &lt;4,6,3,7&gt; = &lt;5+3, 9+6+7, 2+4&gt;
---   </pre>
---   
---   This function is useful for instances of <a>Vector</a> that cannot
---   store pairs. Otherwise, <a>accumulate</a> is probably more convenient:
---   
---   <pre>
---   accumulate_ f as is bs = <a>accumulate</a> f as (<a>zip</a> is bs)
---   </pre>
-accumulate_ :: (a -> b -> a) -> Vector m a -> Vector n Int -> Vector n b -> Vector m a
-
--- | Same as <a>accum</a> but without bounds checking.
-unsafeAccum :: (a -> b -> a) -> Vector m a -> [(Int, b)] -> Vector m a
-
--- | Same as <a>accumulate</a> but without bounds checking.
-unsafeAccumulate :: (a -> b -> a) -> Vector m a -> Vector n (Int, b) -> Vector m a
-
--- | Same as <a>accumulate_</a> but without bounds checking.
-unsafeAccumulate_ :: (a -> b -> a) -> Vector m a -> Vector n Int -> Vector n b -> Vector m a
-
--- | <i>O(n)</i> Reverse a vector
-reverse :: Vector n a -> Vector n a
-
--- | <i>O(n)</i> Yield the vector obtained by replacing each element
---   <tt>i</tt> of the index vector by <tt>xs<tt>!</tt>i</tt>. This is
---   equivalent to <tt><a>map</a> (xs<tt>!</tt>) is</tt> but is often much
---   more efficient.
---   
---   <pre>
---   backpermute &lt;a,b,c,d&gt; &lt;0,3,2,3,1,0&gt; = &lt;a,d,c,d,b,a&gt;
---   </pre>
-backpermute :: Vector m a -> Vector n Int -> Vector n a
-
--- | Same as <a>backpermute</a> but without bounds checking.
-unsafeBackpermute :: Vector m a -> Vector n Int -> Vector n a
-
--- | Lens to access (<i>O(1)</i>) and update (<i>O(n)</i>) an arbitrary
---   element by its index.
-ix :: forall n a f. (KnownNat n, Functor f) => Finite n -> (a -> f a) -> Vector n a -> f (Vector n a)
-
--- | Lens to access (<i>O(1)</i>) and update (<i>O(n)</i>) the first
---   element of a non-empty vector.
-_head :: forall n a f. (KnownNat n, Functor f) => (a -> f a) -> Vector (1 + n) a -> f (Vector (1 + n) a)
-
--- | Lens to access (<i>O(1)</i>) and update (<i>O(n)</i>) the last element
---   of a non-empty vector.
-_last :: forall n a f. (KnownNat n, Functor f) => (a -> f a) -> Vector (n + 1) a -> f (Vector (n + 1) a)
-
--- | <i>O(n)</i> Pair each element in a vector with its index
-indexed :: Vector n a -> Vector n (Int, a)
-
--- | <i>O(n)</i> Map a function over a vector
-map :: (a -> b) -> Vector n a -> Vector n b
-
--- | <i>O(n)</i> Apply a function to every element of a vector and its
---   index
-imap :: (Int -> a -> b) -> Vector n a -> Vector n b
-
--- | <i>O(n*m)</i> Map a function over a vector and concatenate the
---   results. The function is required to always return the same length
---   vector.
-concatMap :: (a -> Vector m b) -> Vector n a -> Vector (n * m) b
-
--- | <i>O(n)</i> Apply the monadic action to all elements of the vector,
---   yielding a vector of results
-mapM :: Monad m => (a -> m b) -> Vector n a -> m (Vector n b)
-
--- | <i>O(n)</i> Apply the monadic action to every element of a vector and
---   its index, yielding a vector of results
-imapM :: Monad m => (Int -> a -> m b) -> Vector n a -> m (Vector n b)
-
--- | <i>O(n)</i> Apply the monadic action to all elements of a vector and
---   ignore the results
-mapM_ :: Monad m => (a -> m b) -> Vector n a -> m ()
-
--- | <i>O(n)</i> Apply the monadic action to every element of a vector and
---   its index, ignoring the results
-imapM_ :: Monad m => (Int -> a -> m b) -> Vector n a -> m ()
-
--- | <i>O(n)</i> Apply the monadic action to all elements of the vector,
---   yielding a vector of results. Equvalent to <tt>flip <a>mapM</a></tt>.
-forM :: Monad m => Vector n a -> (a -> m b) -> m (Vector n b)
-
--- | <i>O(n)</i> Apply the monadic action to all elements of a vector and
---   ignore the results. Equivalent to <tt>flip <a>mapM_</a></tt>.
-forM_ :: Monad m => Vector n a -> (a -> m b) -> m ()
-
--- | <i>O(n)</i> Zip two vectors of the same length with the given
---   function.
-zipWith :: (a -> b -> c) -> Vector n a -> Vector n b -> Vector n c
-
--- | Zip three vectors with the given function.
-zipWith3 :: (a -> b -> c -> d) -> Vector n a -> Vector n b -> Vector n c -> Vector n d
-zipWith4 :: (a -> b -> c -> d -> e) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e
-zipWith5 :: (a -> b -> c -> d -> e -> f) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f
-zipWith6 :: (a -> b -> c -> d -> e -> f -> g) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f -> Vector n g
-
--- | <i>O(n)</i> Zip two vectors of the same length with a function that
---   also takes the elements' indices).
-izipWith :: (Int -> a -> b -> c) -> Vector n a -> Vector n b -> Vector n c
-izipWith3 :: (Int -> a -> b -> c -> d) -> Vector n a -> Vector n b -> Vector n c -> Vector n d
-izipWith4 :: (Int -> a -> b -> c -> d -> e) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e
-izipWith5 :: (Int -> a -> b -> c -> d -> e -> f) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f
-izipWith6 :: (Int -> a -> b -> c -> d -> e -> f -> g) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f -> Vector n g
-
--- | <i>O(n)</i> Zip two vectors of the same length
-zip :: Vector n a -> Vector n b -> Vector n (a, b)
-zip3 :: Vector n a -> Vector n b -> Vector n c -> Vector n (a, b, c)
-zip4 :: Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n (a, b, c, d)
-zip5 :: Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n (a, b, c, d, e)
-zip6 :: Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f -> Vector n (a, b, c, d, e, f)
-
--- | <i>O(n)</i> Zip the two vectors of the same length with the monadic
---   action and yield a vector of results
-zipWithM :: Monad m => (a -> b -> m c) -> Vector n a -> Vector n b -> m (Vector n c)
-
--- | <i>O(n)</i> Zip the two vectors with a monadic action that also takes
---   the element index and yield a vector of results
-izipWithM :: Monad m => (Int -> a -> b -> m c) -> Vector n a -> Vector n b -> m (Vector n c)
-
--- | <i>O(n)</i> Zip the two vectors with the monadic action and ignore the
---   results
-zipWithM_ :: Monad m => (a -> b -> m c) -> Vector n a -> Vector n b -> m ()
-
--- | <i>O(n)</i> Zip the two vectors with a monadic action that also takes
---   the element index and ignore the results
-izipWithM_ :: Monad m => (Int -> a -> b -> m c) -> Vector n a -> Vector n b -> m ()
-
--- | <i>O(min(m,n))</i> Unzip a vector of pairs.
-unzip :: Vector n (a, b) -> (Vector n a, Vector n b)
-unzip3 :: Vector n (a, b, c) -> (Vector n a, Vector n b, Vector n c)
-unzip4 :: Vector n (a, b, c, d) -> (Vector n a, Vector n b, Vector n c, Vector n d)
-unzip5 :: Vector n (a, b, c, d, e) -> (Vector n a, Vector n b, Vector n c, Vector n d, Vector n e)
-unzip6 :: Vector n (a, b, c, d, e, f) -> (Vector n a, Vector n b, Vector n c, Vector n d, Vector n e, Vector n f)
-
--- | <i>O(n)</i> Check if the vector contains an element
-elem :: Eq a => a -> Vector n a -> Bool
-infix 4 `elem`
-
--- | <i>O(n)</i> Check if the vector does not contain an element (inverse
---   of <a>elem</a>)
-notElem :: Eq a => a -> Vector n a -> Bool
-infix 4 `notElem`
-
--- | <i>O(n)</i> Yield <a>Just</a> the first element matching the predicate
---   or <a>Nothing</a> if no such element exists.
-find :: (a -> Bool) -> Vector n a -> Maybe a
-
--- | <i>O(n)</i> Yield <a>Just</a> the index of the first element matching
---   the predicate or <a>Nothing</a> if no such element exists.
-findIndex :: (a -> Bool) -> Vector n a -> Maybe Int
-
--- | <i>O(n)</i> Yield <a>Just</a> the index of the first occurence of the
---   given element or <a>Nothing</a> if the vector does not contain the
---   element. This is a specialised version of <a>findIndex</a>.
-elemIndex :: (Eq a) => a -> Vector n a -> Maybe Int
-
--- | <i>O(n)</i> Left fold
-foldl :: (a -> b -> a) -> a -> Vector n b -> a
-
--- | <i>O(n)</i> Left fold on non-empty vectors
-foldl1 :: KnownNat n => (a -> a -> a) -> Vector (1 + n) a -> a
-
--- | <i>O(n)</i> Left fold with strict accumulator
-foldl' :: (a -> b -> a) -> a -> Vector n b -> a
-
--- | <i>O(n)</i> Left fold on non-empty vectors with strict accumulator
-foldl1' :: KnownNat n => (a -> a -> a) -> Vector (1 + n) a -> a
-
--- | <i>O(n)</i> Right fold
-foldr :: (a -> b -> b) -> b -> Vector n a -> b
-
--- | <i>O(n)</i> Right fold on non-empty vectors
-foldr1 :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> a
-
--- | <i>O(n)</i> Right fold with a strict accumulator
-foldr' :: (a -> b -> b) -> b -> Vector n a -> b
-
--- | <i>O(n)</i> Right fold on non-empty vectors with strict accumulator
-foldr1' :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> a
-
--- | <i>O(n)</i> Left fold (function applied to each element and its index)
-ifoldl :: (a -> Int -> b -> a) -> a -> Vector n b -> a
-
--- | <i>O(n)</i> Left fold with strict accumulator (function applied to
---   each element and its index)
-ifoldl' :: (a -> Int -> b -> a) -> a -> Vector n b -> a
-
--- | <i>O(n)</i> Right fold (function applied to each element and its
---   index)
-ifoldr :: (Int -> a -> b -> b) -> b -> Vector n a -> b
-
--- | <i>O(n)</i> Right fold with strict accumulator (function applied to
---   each element and its index)
-ifoldr' :: (Int -> a -> b -> b) -> b -> Vector n a -> b
-
--- | <i>O(n)</i> Check if all elements satisfy the predicate.
-all :: (a -> Bool) -> Vector n a -> Bool
-
--- | <i>O(n)</i> Check if any element satisfies the predicate.
-any :: (a -> Bool) -> Vector n a -> Bool
-
--- | <i>O(n)</i> Check if all elements are <a>True</a>
-and :: Vector n Bool -> Bool
-
--- | <i>O(n)</i> Check if any element is <a>True</a>
-or :: Vector n Bool -> Bool
-
--- | <i>O(n)</i> Compute the sum of the elements
-sum :: (Num a) => Vector n a -> a
-
--- | <i>O(n)</i> Compute the produce of the elements
-product :: (Num a) => Vector n a -> a
-
--- | <i>O(n)</i> Yield the maximum element of the non-empty vector.
-maximum :: (Ord a, KnownNat n) => Vector (n + 1) a -> a
-
--- | <i>O(n)</i> Yield the maximum element of the non-empty vector
---   according to the given comparison function.
-maximumBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> a
-
--- | <i>O(n)</i> Yield the minimum element of the non-empty vector.
-minimum :: (Ord a, KnownNat n) => Vector (n + 1) a -> a
-
--- | <i>O(n)</i> Yield the minimum element of the non-empty vector
---   according to the given comparison function.
-minimumBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> a
-
--- | <i>O(n)</i> Yield the index of the maximum element of the non-empty
---   vector.
-maxIndex :: (Ord a, KnownNat n) => Vector (n + 1) a -> Int
-
--- | <i>O(n)</i> Yield the index of the maximum element of the non-empty
---   vector according to the given comparison function.
-maxIndexBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> Int
-
--- | <i>O(n)</i> Yield the index of the minimum element of the non-empty
---   vector.
-minIndex :: (Ord a, KnownNat n) => Vector (n + 1) a -> Int
-
--- | <i>O(n)</i> Yield the index of the minimum element of the non-empty
---   vector according to the given comparison function.
-minIndexBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> Int
-
--- | <i>O(n)</i> Monadic fold
-foldM :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m a
-
--- | <i>O(n)</i> Monadic fold (action applied to each element and its
---   index)
-ifoldM :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m a
-
--- | <i>O(n)</i> Monadic fold over non-empty vectors
-fold1M :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (1 + n) a -> m a
-
--- | <i>O(n)</i> Monadic fold with strict accumulator
-foldM' :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m a
-
--- | <i>O(n)</i> Monadic fold with strict accumulator (action applied to
---   each element and its index)
-ifoldM' :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m a
-
--- | <i>O(n)</i> Monadic fold over non-empty vectors with strict
---   accumulator
-fold1M' :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (n + 1) a -> m a
-
--- | <i>O(n)</i> Monadic fold that discards the result
-foldM_ :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m ()
-
--- | <i>O(n)</i> Monadic fold that discards the result (action applied to
---   each element and its index)
-ifoldM_ :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m ()
-
--- | <i>O(n)</i> Monadic fold over non-empty vectors that discards the
---   result
-fold1M_ :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (n + 1) a -> m ()
-
--- | <i>O(n)</i> Monadic fold with strict accumulator that discards the
---   result
-foldM'_ :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m ()
-
--- | <i>O(n)</i> Monadic fold with strict accumulator that discards the
---   result (action applied to each element and its index)
-ifoldM'_ :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m ()
-
--- | <i>O(n)</i> Monad fold over non-empty vectors with strict accumulator
---   that discards the result
-fold1M'_ :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (n + 1) a -> m ()
-
--- | Evaluate each action and collect the results
-sequence :: Monad m => Vector n (m a) -> m (Vector n a)
-
--- | Evaluate each action and discard the results
-sequence_ :: Monad m => Vector n (m a) -> m ()
-
--- | <i>O(n)</i> Prescan
---   
---   <pre>
---   prescanl f z = <a>init</a> . <a>scanl</a> f z
---   </pre>
---   
---   Example: <tt>prescanl (+) 0 &lt;1,2,3,4&gt; = &lt;0,1,3,6&gt;</tt>
-prescanl :: (a -> b -> a) -> a -> Vector n b -> Vector n a
-
--- | <i>O(n)</i> Prescan with strict accumulator
-prescanl' :: (a -> b -> a) -> a -> Vector n b -> Vector n a
-
--- | <i>O(n)</i> Scan
-postscanl :: (a -> b -> a) -> a -> Vector n b -> Vector n a
-
--- | <i>O(n)</i> Scan with strict accumulator
-postscanl' :: (a -> b -> a) -> a -> Vector n b -> Vector n a
-
--- | <i>O(n)</i> Haskell-style scan
-scanl :: (a -> b -> a) -> a -> Vector n b -> Vector n a
-
--- | <i>O(n)</i> Haskell-style scan with strict accumulator
-scanl' :: (a -> b -> a) -> a -> Vector n b -> Vector n a
-
--- | <i>O(n)</i> Scan over a non-empty vector
-scanl1 :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
-
--- | <i>O(n)</i> Scan over a non-empty vector with a strict accumulator
-scanl1' :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
-
--- | <i>O(n)</i> Right-to-left prescan
-prescanr :: (a -> b -> b) -> b -> Vector n a -> Vector n b
-
--- | <i>O(n)</i> Right-to-left prescan with strict accumulator
-prescanr' :: (a -> b -> b) -> b -> Vector n a -> Vector n b
-
--- | <i>O(n)</i> Right-to-left scan
-postscanr :: (a -> b -> b) -> b -> Vector n a -> Vector n b
-
--- | <i>O(n)</i> Right-to-left scan with strict accumulator
-postscanr' :: (a -> b -> b) -> b -> Vector n a -> Vector n b
-
--- | <i>O(n)</i> Right-to-left Haskell-style scan
-scanr :: (a -> b -> b) -> b -> Vector n a -> Vector n b
-
--- | <i>O(n)</i> Right-to-left Haskell-style scan with strict accumulator
-scanr' :: (a -> b -> b) -> b -> Vector n a -> Vector n b
-
--- | <i>O(n)</i> Right-to-left scan over a non-empty vector
-scanr1 :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
-
--- | <i>O(n)</i> Right-to-left scan over a non-empty vector with a strict
---   accumulator
-scanr1' :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
-
--- | <i>O(n)</i> Convert a vector to a list
-toList :: Vector n a -> [a]
-
--- | <i>O(n)</i> Convert a list to a vector
-fromList :: KnownNat n => [a] -> Maybe (Vector n a)
-
--- | <i>O(n)</i> Convert the first <tt>n</tt> elements of a list to a
---   vector. The length of the resultant vector is inferred from the type.
-fromListN :: forall n a. KnownNat n => [a] -> Maybe (Vector n a)
-
--- | <i>O(n)</i> Convert the first <tt>n</tt> elements of a list to a
---   vector. The length of the resultant vector is given explicitly as a
---   <a>Proxy</a> argument.
-fromListN' :: forall n a p. KnownNat n => p n -> [a] -> Maybe (Vector n a)
-
--- | <i>O(n)</i> Takes a list and returns a continuation providing a vector
---   with a size parameter corresponding to the length of the list.
---   
---   Essentially converts a list into a vector with the proper size
---   parameter, determined at runtime.
---   
---   See <a>withSized</a>
-withSizedList :: forall a r. [a] -> (forall n. KnownNat n => Vector n a -> r) -> r
-
--- | <i>O(n)</i> Yield an immutable copy of the mutable vector.
-freeze :: PrimMonad m => MVector n (PrimState m) a -> m (Vector n a)
-
--- | <i>O(n)</i> Yield a mutable copy of the immutable vector.
-thaw :: PrimMonad m => Vector n a -> m (MVector n (PrimState m) a)
-
--- | <i>O(n)</i> Copy an immutable vector into a mutable one.
-copy :: PrimMonad m => MVector n (PrimState m) a -> Vector n a -> m ()
-
--- | <i>O(1)</i> Unsafely convert a mutable vector to an immutable one
---   withouy copying. The mutable vector may not be used after this
---   operation.
-unsafeFreeze :: PrimMonad m => MVector n (PrimState m) a -> m (Vector n a)
-
--- | <i>O(n)</i> Unsafely convert an immutable vector to a mutable one
---   without copying. The immutable vector may not be used after this
---   operation.
-unsafeThaw :: PrimMonad m => Vector n a -> m (MVector n (PrimState m) a)
-
--- | Convert a <a>Vector</a> into a <a>Vector</a> if it has the correct
---   size, otherwise return Nothing.
-toSized :: forall n a. KnownNat n => Vector a -> Maybe (Vector n a)
-
--- | Takes a <a>Vector</a> and returns a continuation providing a
---   <a>Vector</a> with a size parameter <tt>n</tt> that is determined at
---   runtime based on the length of the input vector.
---   
---   Essentially converts a <a>Vector</a> into a <a>Vector</a> with the
---   correct size parameter <tt>n</tt>.
-withSized :: forall a r. Vector a -> (forall n. KnownNat n => Vector n a -> r) -> r
-fromSized :: Vector n a -> Vector a
-
--- | Apply a function on unsized vectors to a sized vector. The function
---   must preserve the size of the vector, this is not checked.
-withVectorUnsafe :: (Vector a -> Vector b) -> Vector n a -> Vector n b
-
-
--- | This module re-exports the functionality in <a>Sized</a> specialized
---   to <a>Mutable</a>
---   
---   Functions returning a vector determine the size from the type context
---   unless they have a <tt>'</tt> suffix in which case they take an
---   explicit <a>Proxy</a> argument.
---   
---   Functions where the resultant vector size is not know until compile
---   time are not exported.
-module Data.Vector.Storable.Mutable.Sized
-
--- | <a>Vector</a> specialized to use <a>Mutable</a>
-type MVector = MVector MVector
-
--- | <i>O(1)</i> Yield the length of the mutable vector as an <a>Int</a>.
-length :: forall n s a. (KnownNat n) => MVector n s a -> Int
-
--- | <i>O(1)</i> Yield the length of the mutable vector as a <a>Proxy</a>.
-length' :: forall n s a. (KnownNat n) => MVector n s a -> Proxy n
-
--- | <i>O(1)</i> Check whether the mutable vector is empty
-null :: forall n s a. (KnownNat n) => MVector n s a -> Bool
-
--- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
---   with an inferred length argument.
-slice :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k, Storable a) => p i -> MVector ((i + n) + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield a slice of the mutable vector without copying it
---   with an explicit length argument.
-slice' :: forall i n k s a p. (KnownNat i, KnownNat n, KnownNat k, Storable a) => p i -> p n -> MVector ((i + n) + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield all but the last element of a non-empty mutable
---   vector without copying.
-init :: forall n s a. Storable a => MVector (n + 1) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield all but the first element of a non-empty mutable
---   vector without copying.
-tail :: forall n s a. Storable a => MVector (1 + n) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield the first n elements. The resultant vector always
---   contains this many elements. The length of the resultant vector is
---   inferred from the type.
-take :: forall n k s a. (KnownNat n, KnownNat k, Storable a) => MVector (n + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield the first n elements. The resultant vector always
---   contains this many elements. The length of the resultant vector is
---   given explicitly as a <a>Proxy</a> argument.
-take' :: forall n k s a p. (KnownNat n, KnownNat k, Storable a) => p n -> MVector (n + k) s a -> MVector n s a
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is inferred from the type.
-drop :: forall n k s a. (KnownNat n, KnownNat k, Storable a) => MVector (n + k) s a -> MVector k s a
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is givel explicitly as a <a>Proxy</a> argument.
-drop' :: forall n k s a p. (KnownNat n, KnownNat k, Storable a) => p n -> MVector (n + k) s a -> MVector k s a
-
--- | <i>O(1)</i> Yield the first n elements paired with the remainder
---   without copying. The lengths of the resultant vector are inferred from
---   the type.
-splitAt :: forall n m s a. (KnownNat n, KnownNat m, Storable a) => MVector (n + m) s a -> (MVector n s a, MVector m s a)
-
--- | <i>O(1)</i> Yield the first n elements paired with the remainder
---   without copying. The length of the first resultant vector is passed
---   explicitly as a <a>Proxy</a> argument.
-splitAt' :: forall n m s a p. (KnownNat n, KnownNat m, Storable a) => p n -> MVector (n + m) s a -> (MVector n s a, MVector m s a)
-
--- | <i>O(1)</i> Yield all but the the first n elements. The given vector
---   must contain at least this many elements The length of the resultant
---   vector is inferred from the type.
-overlaps :: forall n k s a. (KnownNat n, KnownNat k, Storable a) => MVector n s a -> MVector k s a -> Bool
-
--- | Create a mutable vector where the length is inferred from the type.
-new :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is inferred from the type.
---   The memory is not initialized.
-unsafeNew :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is inferred from the type and
---   fill it with an initial value.
-replicate :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => a -> m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is given explicitly as a
---   <a>Proxy</a> argument and fill it with an initial value.
-replicate' :: forall n m a p. (KnownNat n, PrimMonad m, Storable a) => p n -> a -> m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is inferred from the type and
---   fill it with values produced by repeatedly executing the monadic
---   action.
-replicateM :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => m a -> m (MVector n (PrimState m) a)
-
--- | Create a mutable vector where the length is given explicitly as a
---   <a>Proxy</a> argument and fill it with values produced by repeatedly
---   executing the monadic action.
-replicateM' :: forall n m a p. (KnownNat n, PrimMonad m, Storable a) => p n -> m a -> m (MVector n (PrimState m) a)
-
--- | Create a copy of a mutable vector.
-clone :: forall n m a. (PrimMonad m, Storable a) => MVector n (PrimState m) a -> m (MVector n (PrimState m) a)
-
--- | Grow a mutable vector by an amount given explicitly as a <a>Proxy</a>
---   argument.
-grow :: forall n k m a p. (KnownNat k, PrimMonad m, Storable a) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
-
--- | Grow a mutable vector (from the front) by an amount given explicitly
---   as a <a>Proxy</a> argument.
-growFront :: forall n k m a p. (KnownNat k, PrimMonad m, Storable a) => p k -> MVector n (PrimState m) a -> m (MVector (n + k) (PrimState m) a)
-
--- | Reset all elements of the vector to some undefined value, clearing all
---   references to external objects.
-clear :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> m ()
-
--- | <i>O(1)</i> Yield the element at a given type-safe position using
---   <a>Finite</a>.
-read :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> m a
-
--- | <i>O(1)</i> Yield the element at a given type-safe position using
---   <a>Proxy</a>.
-read' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> p k -> m a
-
--- | <i>O(1)</i> Replace the element at a given type-safe position using
---   <a>Finite</a>.
-write :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> a -> m ()
-
--- | <i>O(1)</i> Replace the element at a given type-safe position using
---   <a>Proxy</a>.
-write' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m ()
-
--- | <i>O(1)</i> Modify the element at a given type-safe position using
---   <a>Finite</a>.
-modify :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> (a -> a) -> Finite n -> m ()
-
--- | <i>O(1)</i> Modify the element at a given type-safe position using
---   <a>Proxy</a>.
-modify' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> (a -> a) -> p k -> m ()
-
--- | <i>O(1)</i> Swap the elements at a given type-safe position using
---   <a>Finite</a>s.
-swap :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> Finite n -> m ()
-
--- | <i>O(1)</i> Replace the element at a given type-safe position and
---   return the old element, using <a>Finite</a>.
-exchange :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Finite n -> a -> m a
-
--- | <i>O(1)</i> Replace the element at a given type-safe position and
---   return the old element, using <a>Finite</a>.
-exchange' :: forall n k a m p. (KnownNat n, KnownNat k, PrimMonad m, Storable a) => MVector ((n + k) + 1) (PrimState m) a -> p k -> a -> m a
-
--- | <i>O(1)</i> Yield the element at a given <a>Int</a> position without
---   bounds checking.
-unsafeRead :: forall n a m. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> m a
-
--- | <i>O(1)</i> Replace the element at a given <a>Int</a> position without
---   bounds checking.
-unsafeWrite :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> a -> m ()
-
--- | <i>O(1)</i> Modify the element at a given <a>Int</a> position without
---   bounds checking.
-unsafeModify :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> (a -> a) -> Int -> m ()
-
--- | <i>O(1)</i> Swap the elements at a given <a>Int</a> position without
---   bounds checking.
-unsafeSwap :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> Int -> m ()
-
--- | <i>O(1)</i> Replace the element at a given <a>Int</a> position and
---   return the old element. No bounds checks are performed.
-unsafeExchange :: forall n m a. (KnownNat n, PrimMonad m, Storable a) => MVector n (PrimState m) a -> Int -> a -> m a
-
--- | Compute the next (lexicographically) permutation of a given vector
---   in-place. Returns <a>False</a> when the input is the last permutation.
-nextPermutation :: forall n e m. (KnownNat n, Ord e, PrimMonad m, Storable e) => MVector n (PrimState m) e -> m Bool
-
--- | Set all elements of the vector to the given value.
-set :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> a -> m ()
-
--- | Copy a vector. The two vectors may not overlap.
-copy :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
-
--- | Move the contents of a vector. If the two vectors do not overlap, this
---   is equivalent to <a>copy</a>. Otherwise, the copying is performed as
---   if the source vector were copied to a temporary vector and then the
---   temporary vector was copied to the target vector.
-move :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
-
--- | Copy a vector. The two vectors may not overlap. This is not checked.
-unsafeCopy :: (PrimMonad m, Storable a) => MVector n (PrimState m) a -> MVector n (PrimState m) a -> m ()
-
--- | Convert a <a>MVector</a> into a <a>MVector</a> if it has the correct
---   size, otherwise return Nothing.
---   
---   Note that this does no copying; the returned <a>MVector</a> is a
---   reference to the exact same vector in memory as the given one, and any
---   modifications to it are also reflected in the given <a>MVector</a>.
-toSized :: forall n a s. (KnownNat n, Storable a) => MVector s a -> Maybe (MVector n s a)
-
--- | Takes a <a>MVector</a> and returns a continuation providing a
---   <a>MVector</a> with a size parameter <tt>n</tt> that is determined at
---   runtime based on the length of the input vector.
---   
---   Essentially converts a <a>MVector</a> into a <a>MVector</a> with the
---   correct size parameter <tt>n</tt>.
---   
---   Note that this does no copying; the returned <a>MVector</a> is a
---   reference to the exact same vector in memory as the given one, and any
---   modifications to it are also reflected in the given <a>MVector</a>.
-withSized :: forall s a r. Storable a => MVector s a -> (forall n. KnownNat n => MVector n s a -> r) -> r
-
--- | Convert a <a>MVector</a> into a <a>MVector</a>.
---   
---   Note that this does no copying; the returned <a>MVector</a> is a
---   reference to the exact same vector in memory as the given one, and any
---   modifications to it are also reflected in the given <a>MVector</a>.
-fromSized :: MVector n s a -> MVector s a
+instance (Data.Vector.Generic.Base.Vector v a, GHC.Num.Num a, GHC.TypeLits.KnownNat n) => GHC.Num.Num (Data.Vector.Generic.Sized.Vector v n a)
+instance (Data.Vector.Generic.Base.Vector v a, GHC.Real.Fractional a, GHC.TypeLits.KnownNat n) => GHC.Real.Fractional (Data.Vector.Generic.Sized.Vector v n a)
+instance (Data.Vector.Generic.Base.Vector v a, GHC.Float.Floating a, GHC.TypeLits.KnownNat n) => GHC.Float.Floating (Data.Vector.Generic.Sized.Vector v n a)
 
 
 -- | This module re-exports the functionality in <a>Sized</a> specialized
@@ -2780,3 +2068,703 @@ fromSized :: Vector n a -> Vector a
 -- | Apply a function on unsized vectors to a sized vector. The function
 --   must preserve the size of the vector, this is not checked.
 withVectorUnsafe :: forall a b (n :: Nat). (Storable a, Storable b) => (Vector a -> Vector b) -> Vector n a -> Vector n b
+
+
+-- | This module re-exports the functionality in <a>Sized</a> specialized
+--   to <a>Vector</a>.
+--   
+--   Functions returning a vector determine the size from the type context
+--   unless they have a <tt>'</tt> suffix in which case they take an
+--   explicit <a>Proxy</a> argument.
+--   
+--   Functions where the resultant vector size is not know until compile
+--   time are not exported.
+module Data.Vector.Sized
+
+-- | <a>Vector</a> specialized to use <a>Vector</a>
+type Vector = Vector Vector
+
+-- | <a>Vector</a> specialized to use <a>Mutable</a>
+type MVector = MVector MVector
+
+-- | <i>O(1)</i> Yield the length of the vector as an <a>Int</a>.
+length :: forall n a. KnownNat n => Vector n a -> Int
+
+-- | <i>O(1)</i> Yield the length of the vector as a <a>Proxy</a>.
+length' :: forall n a. KnownNat n => Vector n a -> Proxy n
+
+-- | <i>O(1)</i> Safe indexing using a <a>Finite</a>.
+index :: forall n a. KnownNat n => Vector n a -> Finite n -> a
+
+-- | <i>O(1)</i> Safe indexing using a <a>Proxy</a>.
+index' :: forall n m a p. (KnownNat n, KnownNat m) => Vector ((n + m) + 1) a -> p n -> a
+
+-- | <i>O(1)</i> Indexing using an Int without bounds checking.
+unsafeIndex :: forall n a. KnownNat n => Vector n a -> Int -> a
+
+-- | <i>O(1)</i> Yield the first element of a non-empty vector.
+head :: forall n a. Vector (1 + n) a -> a
+
+-- | <i>O(1)</i> Yield the last element of a non-empty vector.
+last :: forall n a. Vector (n + 1) a -> a
+
+-- | <i>O(1)</i> Safe indexing in a monad. See the documentation for
+--   <a>indexM</a> for an explanation of why this is useful.
+indexM :: forall n a m. (KnownNat n, Monad m) => Vector n a -> Finite n -> m a
+
+-- | <i>O(1)</i> Safe indexing in a monad using a <a>Proxy</a>. See the
+--   documentation for <a>indexM</a> for an explanation of why this is
+--   useful.
+indexM' :: forall n k a m p. (KnownNat n, KnownNat k, Monad m) => Vector (n + k) a -> p n -> m a
+
+-- | <i>O(1)</i> Indexing using an Int without bounds checking. See the
+--   documentation for <a>indexM</a> for an explanation of why this is
+--   useful.
+unsafeIndexM :: forall n a m. (KnownNat n, Monad m) => Vector n a -> Int -> m a
+
+-- | <i>O(1)</i> Yield the first element of a non-empty vector in a monad.
+--   See the documentation for <a>indexM</a> for an explanation of why this
+--   is useful.
+headM :: forall n a m. (KnownNat n, Monad m) => Vector (1 + n) a -> m a
+
+-- | <i>O(1)</i> Yield the last element of a non-empty vector in a monad.
+--   See the documentation for <a>indexM</a> for an explanation of why this
+--   is useful.
+lastM :: forall n a m. (KnownNat n, Monad m) => Vector (n + 1) a -> m a
+
+-- | <i>O(1)</i> Yield a slice of the vector without copying it with an
+--   inferred length argument.
+slice :: forall i n m a p. (KnownNat i, KnownNat n, KnownNat m) => p i -> Vector ((i + n) + m) a -> Vector n a
+
+-- | <i>O(1)</i> Yield a slice of the vector without copying it with an
+--   explicit length argument.
+slice' :: forall i n m a p. (KnownNat i, KnownNat n, KnownNat m) => p i -> p n -> Vector ((i + n) + m) a -> Vector n a
+
+-- | <i>O(1)</i> Yield all but the last element of a non-empty vector
+--   without copying.
+init :: forall n a. Vector (n + 1) a -> Vector n a
+
+-- | <i>O(1)</i> Yield all but the first element of a non-empty vector
+--   without copying.
+tail :: forall n a. Vector (1 + n) a -> Vector n a
+
+-- | <i>O(1)</i> Yield the first n elements. The resultant vector always
+--   contains this many elements. The length of the resultant vector is
+--   inferred from the type.
+take :: forall n m a. (KnownNat n, KnownNat m) => Vector (n + m) a -> Vector n a
+
+-- | <i>O(1)</i> Yield the first n elements. The resultant vector always
+--   contains this many elements. The length of the resultant vector is
+--   given explicitly as a <a>Proxy</a> argument.
+take' :: forall n m a p. (KnownNat n, KnownNat m) => p n -> Vector (n + m) a -> Vector n a
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is inferred from the type.
+drop :: forall n m a. (KnownNat n, KnownNat m) => Vector (n + m) a -> Vector m a
+
+-- | <i>O(1)</i> Yield all but the the first n elements. The given vector
+--   must contain at least this many elements The length of the resultant
+--   vector is givel explicitly as a <a>Proxy</a> argument.
+drop' :: forall n m a p. (KnownNat n, KnownNat m) => p n -> Vector (n + m) a -> Vector m a
+
+-- | <i>O(1)</i> Yield the first n elements paired with the remainder
+--   without copying. The lengths of the resultant vector are inferred from
+--   the type.
+splitAt :: forall n m a. (KnownNat n, KnownNat m) => Vector (n + m) a -> (Vector n a, Vector m a)
+
+-- | <i>O(1)</i> Yield the first n elements paired with the remainder
+--   without copying. The length of the first resultant vector is passed
+--   explicitly as a <a>Proxy</a> argument.
+splitAt' :: forall n m a p. (KnownNat n, KnownNat m) => p n -> Vector (n + m) a -> (Vector n a, Vector m a)
+
+-- | <i>O(1)</i> Empty vector.
+empty :: forall a. Vector 0 a
+
+-- | <i>O(1)</i> Vector with exactly one element.
+singleton :: forall a. a -> Vector 1 a
+
+-- | <i>O(n)</i> Construct a vector with the same element in each position
+--   where the length is inferred from the type.
+replicate :: forall n a. KnownNat n => a -> Vector n a
+
+-- | <i>O(n)</i> Construct a vector with the same element in each position
+--   where the length is given explicitly as a <a>Proxy</a> argument.
+replicate' :: forall n a p. KnownNat n => p n -> a -> Vector n a
+
+-- | <i>O(n)</i> construct a vector of the given length by applying the
+--   function to each index where the length is inferred from the type.
+generate :: forall n a. KnownNat n => (Int -> a) -> Vector n a
+
+-- | <i>O(n)</i> construct a vector of the given length by applying the
+--   function to each index where the length is given explicitly as a
+--   <a>Proxy</a> argument.
+generate' :: forall n a p. KnownNat n => p n -> (Int -> a) -> Vector n a
+
+-- | <i>O(n)</i> construct a vector of the given length by applying the
+--   function to each index where the length is inferred from the type.
+--   
+--   The function can expect a <tt><a>Finite</a> n</tt>, meaning that its
+--   input will always be between <tt>0</tt> and <tt>n - 1</tt>.
+generate_ :: forall n a. KnownNat n => (Finite n -> a) -> Vector n a
+
+-- | <i>O(n)</i> Apply function n times to value. Zeroth element is
+--   original value. The length is inferred from the type.
+iterateN :: forall n a. KnownNat n => (a -> a) -> a -> Vector n a
+
+-- | <i>O(n)</i> Apply function n times to value. Zeroth element is
+--   original value. The length is given explicitly as a <a>Proxy</a>
+--   argument.
+iterateN' :: forall n a p. KnownNat n => p n -> (a -> a) -> a -> Vector n a
+
+-- | <i>O(n)</i> Execute the monadic action <tt>n</tt> times and store the
+--   results in a vector where <tt>n</tt> is inferred from the type.
+replicateM :: forall n m a. (KnownNat n, Monad m) => m a -> m (Vector n a)
+
+-- | <i>O(n)</i> Execute the monadic action <tt>n</tt> times and store the
+--   results in a vector where <tt>n</tt> is given explicitly as a
+--   <a>Proxy</a> argument.
+replicateM' :: forall n m a p. (KnownNat n, Monad m) => p n -> m a -> m (Vector n a)
+
+-- | <i>O(n)</i> Construct a vector of length <tt>n</tt> by applying the
+--   monadic action to each index where n is inferred from the type.
+generateM :: forall n m a. (KnownNat n, Monad m) => (Int -> m a) -> m (Vector n a)
+
+-- | <i>O(n)</i> Construct a vector of length <tt>n</tt> by applying the
+--   monadic action to each index where n is given explicitly as a
+--   <a>Proxy</a> argument.
+generateM' :: forall n m a p. (KnownNat n, Monad m) => p n -> (Int -> m a) -> m (Vector n a)
+
+-- | <i>O(n)</i> Construct a vector of length <tt>n</tt> by applying the
+--   monadic action to each index where n is inferred from the type.
+--   
+--   The function can expect a <tt><a>Finite</a> n</tt>, meaning that its
+--   input will always be between <tt>0</tt> and <tt>n - 1</tt>.
+generateM_ :: forall n m a. (KnownNat n, Monad m) => (Finite n -> m a) -> m (Vector n a)
+
+-- | <i>O(n)</i> Construct a vector with exactly <tt>n</tt> elements by
+--   repeatedly applying the generator function to the a seed. The length,
+--   <tt>n</tt>, is inferred from the type.
+unfoldrN :: forall n a b. KnownNat n => (b -> (a, b)) -> b -> Vector n a
+
+-- | <i>O(n)</i> Construct a vector with exactly <tt>n</tt> elements by
+--   repeatedly applying the generator function to the a seed. The length,
+--   <tt>n</tt>, is given explicitly as a <a>Proxy</a> argument.
+unfoldrN' :: forall n a b p. KnownNat n => p n -> (b -> (a, b)) -> b -> Vector n a
+
+-- | <i>O(n)</i> Yield a vector of length <tt>n</tt> containing the values
+--   <tt>x</tt>, <tt>x+1</tt> etc. The length, <tt>n</tt>, is inferred from
+--   the type.
+enumFromN :: forall n a. (KnownNat n, Num a) => a -> Vector n a
+
+-- | <i>O(n)</i> Yield a vector of length <tt>n</tt> containing the values
+--   <tt>x</tt>, <tt>x+1</tt> etc. The length, <tt>n</tt>, is given
+--   explicitly as a <a>Proxy</a> argument.
+enumFromN' :: forall n a p. (KnownNat n, Num a) => a -> p n -> Vector n a
+
+-- | <i>O(n)</i> Yield a vector of the given length containing the values
+--   <tt>x</tt>, <tt>x+y</tt>, <tt>x+y+y</tt> etc. The length, <tt>n</tt>,
+--   is inferred from the type.
+enumFromStepN :: forall n a. (KnownNat n, Num a) => a -> a -> Vector n a
+
+-- | <i>O(n)</i> Yield a vector of the given length containing the values
+--   <tt>x</tt>, <tt>x+y</tt>, <tt>x+y+y</tt> etc. The length, <tt>n</tt>,
+--   is given explicitly as a <a>Proxy</a> argument.
+enumFromStepN' :: forall n a p. (KnownNat n, Num a) => a -> a -> p n -> Vector n a
+
+-- | <i>O(n)</i> Prepend an element.
+cons :: forall n a. a -> Vector n a -> Vector (1 + n) a
+
+-- | <i>O(n)</i> Append an element.
+snoc :: forall n a. Vector n a -> a -> Vector (n + 1) a
+
+-- | <i>O(m+n)</i> Concatenate two vectors.
+(++) :: forall n m a. Vector n a -> Vector m a -> Vector (n + m) a
+
+-- | <i>O(n)</i> Yield the argument but force it not to retain any extra
+--   memory, possibly by copying it.
+--   
+--   This is especially useful when dealing with slices. For example:
+--   
+--   <pre>
+--   force (slice 0 2 &lt;huge vector&gt;)
+--   </pre>
+--   
+--   Here, the slice retains a reference to the huge vector. Forcing it
+--   creates a copy of just the elements that belong to the slice and
+--   allows the huge vector to be garbage collected.
+force :: Vector n a -> Vector n a
+
+-- | <i>O(m+n)</i> For each pair <tt>(i,a)</tt> from the list, replace the
+--   vector element at position <tt>i</tt> by <tt>a</tt>.
+--   
+--   <pre>
+--   &lt;5,9,2,7&gt; // [(2,1),(0,3),(2,8)] = &lt;3,9,8,7&gt;
+--   </pre>
+(//) :: Vector m a -> [(Int, a)] -> Vector m a
+
+-- | <i>O(m+n)</i> For each pair <tt>(i,a)</tt> from the vector of
+--   index/value pairs, replace the vector element at position <tt>i</tt>
+--   by <tt>a</tt>.
+--   
+--   <pre>
+--   update &lt;5,9,2,7&gt; &lt;(2,1),(0,3),(2,8)&gt; = &lt;3,9,8,7&gt;
+--   </pre>
+update :: Vector m a -> Vector n (Int, a) -> Vector m a
+
+-- | <i>O(m+n)</i> For each index <tt>i</tt> from the index vector and the
+--   corresponding value <tt>a</tt> from the value vector, replace the
+--   element of the initial vector at position <tt>i</tt> by <tt>a</tt>.
+--   
+--   <pre>
+--   update_ &lt;5,9,2,7&gt;  &lt;2,0,2&gt; &lt;1,3,8&gt; = &lt;3,9,8,7&gt;
+--   </pre>
+--   
+--   This function is useful for instances of <a>Vector</a> that cannot
+--   store pairs. Otherwise, <a>update</a> is probably more convenient.
+--   
+--   <pre>
+--   update_ xs is ys = <a>update</a> xs (<a>zip</a> is ys)
+--   </pre>
+update_ :: Vector m a -> Vector n Int -> Vector n a -> Vector m a
+
+-- | Same as (<a>//</a>) but without bounds checking.
+unsafeUpd :: Vector m a -> [(Int, a)] -> Vector m a
+
+-- | Same as <a>update</a> but without bounds checking.
+unsafeUpdate :: Vector m a -> Vector n (Int, a) -> Vector m a
+
+-- | Same as <a>update_</a> but without bounds checking.
+unsafeUpdate_ :: Vector m a -> Vector n Int -> Vector n a -> Vector m a
+
+-- | <i>O(m+n)</i> For each pair <tt>(i,b)</tt> from the list, replace the
+--   vector element <tt>a</tt> at position <tt>i</tt> by <tt>f a b</tt>.
+--   
+--   <pre>
+--   accum (+) &lt;5,9,2&gt; [(2,4),(1,6),(0,3),(1,7)] = &lt;5+3, 9+6+7, 2+4&gt;
+--   </pre>
+accum :: (a -> b -> a) -> Vector m a -> [(Int, b)] -> Vector m a
+
+-- | <i>O(m+n)</i> For each pair <tt>(i,b)</tt> from the vector of pairs,
+--   replace the vector element <tt>a</tt> at position <tt>i</tt> by <tt>f
+--   a b</tt>.
+--   
+--   <pre>
+--   accumulate (+) &lt;5,9,2&gt; &lt;(2,4),(1,6),(0,3),(1,7)&gt; = &lt;5+3, 9+6+7, 2+4&gt;
+--   </pre>
+accumulate :: (a -> b -> a) -> Vector m a -> Vector n (Int, b) -> Vector m a
+
+-- | <i>O(m+n)</i> For each index <tt>i</tt> from the index vector and the
+--   corresponding value <tt>b</tt> from the the value vector, replace the
+--   element of the initial vector at position <tt>i</tt> by <tt>f a
+--   b</tt>.
+--   
+--   <pre>
+--   accumulate_ (+) &lt;5,9,2&gt; &lt;2,1,0,1&gt; &lt;4,6,3,7&gt; = &lt;5+3, 9+6+7, 2+4&gt;
+--   </pre>
+--   
+--   This function is useful for instances of <a>Vector</a> that cannot
+--   store pairs. Otherwise, <a>accumulate</a> is probably more convenient:
+--   
+--   <pre>
+--   accumulate_ f as is bs = <a>accumulate</a> f as (<a>zip</a> is bs)
+--   </pre>
+accumulate_ :: (a -> b -> a) -> Vector m a -> Vector n Int -> Vector n b -> Vector m a
+
+-- | Same as <a>accum</a> but without bounds checking.
+unsafeAccum :: (a -> b -> a) -> Vector m a -> [(Int, b)] -> Vector m a
+
+-- | Same as <a>accumulate</a> but without bounds checking.
+unsafeAccumulate :: (a -> b -> a) -> Vector m a -> Vector n (Int, b) -> Vector m a
+
+-- | Same as <a>accumulate_</a> but without bounds checking.
+unsafeAccumulate_ :: (a -> b -> a) -> Vector m a -> Vector n Int -> Vector n b -> Vector m a
+
+-- | <i>O(n)</i> Reverse a vector
+reverse :: Vector n a -> Vector n a
+
+-- | <i>O(n)</i> Yield the vector obtained by replacing each element
+--   <tt>i</tt> of the index vector by <tt>xs<tt>!</tt>i</tt>. This is
+--   equivalent to <tt><a>map</a> (xs<tt>!</tt>) is</tt> but is often much
+--   more efficient.
+--   
+--   <pre>
+--   backpermute &lt;a,b,c,d&gt; &lt;0,3,2,3,1,0&gt; = &lt;a,d,c,d,b,a&gt;
+--   </pre>
+backpermute :: Vector m a -> Vector n Int -> Vector n a
+
+-- | Same as <a>backpermute</a> but without bounds checking.
+unsafeBackpermute :: Vector m a -> Vector n Int -> Vector n a
+
+-- | Lens to access (<i>O(1)</i>) and update (<i>O(n)</i>) an arbitrary
+--   element by its index.
+ix :: forall n a f. (KnownNat n, Functor f) => Finite n -> (a -> f a) -> Vector n a -> f (Vector n a)
+
+-- | Lens to access (<i>O(1)</i>) and update (<i>O(n)</i>) the first
+--   element of a non-empty vector.
+_head :: forall n a f. (KnownNat n, Functor f) => (a -> f a) -> Vector (1 + n) a -> f (Vector (1 + n) a)
+
+-- | Lens to access (<i>O(1)</i>) and update (<i>O(n)</i>) the last element
+--   of a non-empty vector.
+_last :: forall n a f. (KnownNat n, Functor f) => (a -> f a) -> Vector (n + 1) a -> f (Vector (n + 1) a)
+
+-- | <i>O(n)</i> Pair each element in a vector with its index
+indexed :: Vector n a -> Vector n (Int, a)
+
+-- | <i>O(n)</i> Map a function over a vector
+map :: (a -> b) -> Vector n a -> Vector n b
+
+-- | <i>O(n)</i> Apply a function to every element of a vector and its
+--   index
+imap :: (Int -> a -> b) -> Vector n a -> Vector n b
+
+-- | <i>O(n*m)</i> Map a function over a vector and concatenate the
+--   results. The function is required to always return the same length
+--   vector.
+concatMap :: (a -> Vector m b) -> Vector n a -> Vector (n * m) b
+
+-- | <i>O(n)</i> Apply the monadic action to all elements of the vector,
+--   yielding a vector of results
+mapM :: Monad m => (a -> m b) -> Vector n a -> m (Vector n b)
+
+-- | <i>O(n)</i> Apply the monadic action to every element of a vector and
+--   its index, yielding a vector of results
+imapM :: Monad m => (Int -> a -> m b) -> Vector n a -> m (Vector n b)
+
+-- | <i>O(n)</i> Apply the monadic action to all elements of a vector and
+--   ignore the results
+mapM_ :: Monad m => (a -> m b) -> Vector n a -> m ()
+
+-- | <i>O(n)</i> Apply the monadic action to every element of a vector and
+--   its index, ignoring the results
+imapM_ :: Monad m => (Int -> a -> m b) -> Vector n a -> m ()
+
+-- | <i>O(n)</i> Apply the monadic action to all elements of the vector,
+--   yielding a vector of results. Equvalent to <tt>flip <a>mapM</a></tt>.
+forM :: Monad m => Vector n a -> (a -> m b) -> m (Vector n b)
+
+-- | <i>O(n)</i> Apply the monadic action to all elements of a vector and
+--   ignore the results. Equivalent to <tt>flip <a>mapM_</a></tt>.
+forM_ :: Monad m => Vector n a -> (a -> m b) -> m ()
+
+-- | <i>O(n)</i> Zip two vectors of the same length with the given
+--   function.
+zipWith :: (a -> b -> c) -> Vector n a -> Vector n b -> Vector n c
+
+-- | Zip three vectors with the given function.
+zipWith3 :: (a -> b -> c -> d) -> Vector n a -> Vector n b -> Vector n c -> Vector n d
+zipWith4 :: (a -> b -> c -> d -> e) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e
+zipWith5 :: (a -> b -> c -> d -> e -> f) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f
+zipWith6 :: (a -> b -> c -> d -> e -> f -> g) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f -> Vector n g
+
+-- | <i>O(n)</i> Zip two vectors of the same length with a function that
+--   also takes the elements' indices).
+izipWith :: (Int -> a -> b -> c) -> Vector n a -> Vector n b -> Vector n c
+izipWith3 :: (Int -> a -> b -> c -> d) -> Vector n a -> Vector n b -> Vector n c -> Vector n d
+izipWith4 :: (Int -> a -> b -> c -> d -> e) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e
+izipWith5 :: (Int -> a -> b -> c -> d -> e -> f) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f
+izipWith6 :: (Int -> a -> b -> c -> d -> e -> f -> g) -> Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f -> Vector n g
+
+-- | <i>O(n)</i> Zip two vectors of the same length
+zip :: Vector n a -> Vector n b -> Vector n (a, b)
+zip3 :: Vector n a -> Vector n b -> Vector n c -> Vector n (a, b, c)
+zip4 :: Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n (a, b, c, d)
+zip5 :: Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n (a, b, c, d, e)
+zip6 :: Vector n a -> Vector n b -> Vector n c -> Vector n d -> Vector n e -> Vector n f -> Vector n (a, b, c, d, e, f)
+
+-- | <i>O(n)</i> Zip the two vectors of the same length with the monadic
+--   action and yield a vector of results
+zipWithM :: Monad m => (a -> b -> m c) -> Vector n a -> Vector n b -> m (Vector n c)
+
+-- | <i>O(n)</i> Zip the two vectors with a monadic action that also takes
+--   the element index and yield a vector of results
+izipWithM :: Monad m => (Int -> a -> b -> m c) -> Vector n a -> Vector n b -> m (Vector n c)
+
+-- | <i>O(n)</i> Zip the two vectors with the monadic action and ignore the
+--   results
+zipWithM_ :: Monad m => (a -> b -> m c) -> Vector n a -> Vector n b -> m ()
+
+-- | <i>O(n)</i> Zip the two vectors with a monadic action that also takes
+--   the element index and ignore the results
+izipWithM_ :: Monad m => (Int -> a -> b -> m c) -> Vector n a -> Vector n b -> m ()
+
+-- | <i>O(min(m,n))</i> Unzip a vector of pairs.
+unzip :: Vector n (a, b) -> (Vector n a, Vector n b)
+unzip3 :: Vector n (a, b, c) -> (Vector n a, Vector n b, Vector n c)
+unzip4 :: Vector n (a, b, c, d) -> (Vector n a, Vector n b, Vector n c, Vector n d)
+unzip5 :: Vector n (a, b, c, d, e) -> (Vector n a, Vector n b, Vector n c, Vector n d, Vector n e)
+unzip6 :: Vector n (a, b, c, d, e, f) -> (Vector n a, Vector n b, Vector n c, Vector n d, Vector n e, Vector n f)
+
+-- | <i>O(n)</i> Check if the vector contains an element
+elem :: Eq a => a -> Vector n a -> Bool
+infix 4 `elem`
+
+-- | <i>O(n)</i> Check if the vector does not contain an element (inverse
+--   of <a>elem</a>)
+notElem :: Eq a => a -> Vector n a -> Bool
+infix 4 `notElem`
+
+-- | <i>O(n)</i> Yield <a>Just</a> the first element matching the predicate
+--   or <a>Nothing</a> if no such element exists.
+find :: (a -> Bool) -> Vector n a -> Maybe a
+
+-- | <i>O(n)</i> Yield <a>Just</a> the index of the first element matching
+--   the predicate or <a>Nothing</a> if no such element exists.
+findIndex :: (a -> Bool) -> Vector n a -> Maybe Int
+
+-- | <i>O(n)</i> Yield <a>Just</a> the index of the first occurence of the
+--   given element or <a>Nothing</a> if the vector does not contain the
+--   element. This is a specialised version of <a>findIndex</a>.
+elemIndex :: (Eq a) => a -> Vector n a -> Maybe Int
+
+-- | <i>O(n)</i> Left fold
+foldl :: (a -> b -> a) -> a -> Vector n b -> a
+
+-- | <i>O(n)</i> Left fold on non-empty vectors
+foldl1 :: KnownNat n => (a -> a -> a) -> Vector (1 + n) a -> a
+
+-- | <i>O(n)</i> Left fold with strict accumulator
+foldl' :: (a -> b -> a) -> a -> Vector n b -> a
+
+-- | <i>O(n)</i> Left fold on non-empty vectors with strict accumulator
+foldl1' :: KnownNat n => (a -> a -> a) -> Vector (1 + n) a -> a
+
+-- | <i>O(n)</i> Right fold
+foldr :: (a -> b -> b) -> b -> Vector n a -> b
+
+-- | <i>O(n)</i> Right fold on non-empty vectors
+foldr1 :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> a
+
+-- | <i>O(n)</i> Right fold with a strict accumulator
+foldr' :: (a -> b -> b) -> b -> Vector n a -> b
+
+-- | <i>O(n)</i> Right fold on non-empty vectors with strict accumulator
+foldr1' :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> a
+
+-- | <i>O(n)</i> Left fold (function applied to each element and its index)
+ifoldl :: (a -> Int -> b -> a) -> a -> Vector n b -> a
+
+-- | <i>O(n)</i> Left fold with strict accumulator (function applied to
+--   each element and its index)
+ifoldl' :: (a -> Int -> b -> a) -> a -> Vector n b -> a
+
+-- | <i>O(n)</i> Right fold (function applied to each element and its
+--   index)
+ifoldr :: (Int -> a -> b -> b) -> b -> Vector n a -> b
+
+-- | <i>O(n)</i> Right fold with strict accumulator (function applied to
+--   each element and its index)
+ifoldr' :: (Int -> a -> b -> b) -> b -> Vector n a -> b
+
+-- | <i>O(n)</i> Check if all elements satisfy the predicate.
+all :: (a -> Bool) -> Vector n a -> Bool
+
+-- | <i>O(n)</i> Check if any element satisfies the predicate.
+any :: (a -> Bool) -> Vector n a -> Bool
+
+-- | <i>O(n)</i> Check if all elements are <a>True</a>
+and :: Vector n Bool -> Bool
+
+-- | <i>O(n)</i> Check if any element is <a>True</a>
+or :: Vector n Bool -> Bool
+
+-- | <i>O(n)</i> Compute the sum of the elements
+sum :: (Num a) => Vector n a -> a
+
+-- | <i>O(n)</i> Compute the produce of the elements
+product :: (Num a) => Vector n a -> a
+
+-- | <i>O(n)</i> Yield the maximum element of the non-empty vector.
+maximum :: (Ord a, KnownNat n) => Vector (n + 1) a -> a
+
+-- | <i>O(n)</i> Yield the maximum element of the non-empty vector
+--   according to the given comparison function.
+maximumBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> a
+
+-- | <i>O(n)</i> Yield the minimum element of the non-empty vector.
+minimum :: (Ord a, KnownNat n) => Vector (n + 1) a -> a
+
+-- | <i>O(n)</i> Yield the minimum element of the non-empty vector
+--   according to the given comparison function.
+minimumBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> a
+
+-- | <i>O(n)</i> Yield the index of the maximum element of the non-empty
+--   vector.
+maxIndex :: (Ord a, KnownNat n) => Vector (n + 1) a -> Int
+
+-- | <i>O(n)</i> Yield the index of the maximum element of the non-empty
+--   vector according to the given comparison function.
+maxIndexBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> Int
+
+-- | <i>O(n)</i> Yield the index of the minimum element of the non-empty
+--   vector.
+minIndex :: (Ord a, KnownNat n) => Vector (n + 1) a -> Int
+
+-- | <i>O(n)</i> Yield the index of the minimum element of the non-empty
+--   vector according to the given comparison function.
+minIndexBy :: KnownNat n => (a -> a -> Ordering) -> Vector (n + 1) a -> Int
+
+-- | <i>O(n)</i> Monadic fold
+foldM :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m a
+
+-- | <i>O(n)</i> Monadic fold (action applied to each element and its
+--   index)
+ifoldM :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m a
+
+-- | <i>O(n)</i> Monadic fold over non-empty vectors
+fold1M :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (1 + n) a -> m a
+
+-- | <i>O(n)</i> Monadic fold with strict accumulator
+foldM' :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m a
+
+-- | <i>O(n)</i> Monadic fold with strict accumulator (action applied to
+--   each element and its index)
+ifoldM' :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m a
+
+-- | <i>O(n)</i> Monadic fold over non-empty vectors with strict
+--   accumulator
+fold1M' :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (n + 1) a -> m a
+
+-- | <i>O(n)</i> Monadic fold that discards the result
+foldM_ :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m ()
+
+-- | <i>O(n)</i> Monadic fold that discards the result (action applied to
+--   each element and its index)
+ifoldM_ :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m ()
+
+-- | <i>O(n)</i> Monadic fold over non-empty vectors that discards the
+--   result
+fold1M_ :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (n + 1) a -> m ()
+
+-- | <i>O(n)</i> Monadic fold with strict accumulator that discards the
+--   result
+foldM'_ :: Monad m => (a -> b -> m a) -> a -> Vector n b -> m ()
+
+-- | <i>O(n)</i> Monadic fold with strict accumulator that discards the
+--   result (action applied to each element and its index)
+ifoldM'_ :: Monad m => (a -> Int -> b -> m a) -> a -> Vector n b -> m ()
+
+-- | <i>O(n)</i> Monad fold over non-empty vectors with strict accumulator
+--   that discards the result
+fold1M'_ :: (Monad m, KnownNat n) => (a -> a -> m a) -> Vector (n + 1) a -> m ()
+
+-- | Evaluate each action and collect the results
+sequence :: Monad m => Vector n (m a) -> m (Vector n a)
+
+-- | Evaluate each action and discard the results
+sequence_ :: Monad m => Vector n (m a) -> m ()
+
+-- | <i>O(n)</i> Prescan
+--   
+--   <pre>
+--   prescanl f z = <a>init</a> . <a>scanl</a> f z
+--   </pre>
+--   
+--   Example: <tt>prescanl (+) 0 &lt;1,2,3,4&gt; = &lt;0,1,3,6&gt;</tt>
+prescanl :: (a -> b -> a) -> a -> Vector n b -> Vector n a
+
+-- | <i>O(n)</i> Prescan with strict accumulator
+prescanl' :: (a -> b -> a) -> a -> Vector n b -> Vector n a
+
+-- | <i>O(n)</i> Scan
+postscanl :: (a -> b -> a) -> a -> Vector n b -> Vector n a
+
+-- | <i>O(n)</i> Scan with strict accumulator
+postscanl' :: (a -> b -> a) -> a -> Vector n b -> Vector n a
+
+-- | <i>O(n)</i> Haskell-style scan
+scanl :: (a -> b -> a) -> a -> Vector n b -> Vector n a
+
+-- | <i>O(n)</i> Haskell-style scan with strict accumulator
+scanl' :: (a -> b -> a) -> a -> Vector n b -> Vector n a
+
+-- | <i>O(n)</i> Scan over a non-empty vector
+scanl1 :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
+
+-- | <i>O(n)</i> Scan over a non-empty vector with a strict accumulator
+scanl1' :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
+
+-- | <i>O(n)</i> Right-to-left prescan
+prescanr :: (a -> b -> b) -> b -> Vector n a -> Vector n b
+
+-- | <i>O(n)</i> Right-to-left prescan with strict accumulator
+prescanr' :: (a -> b -> b) -> b -> Vector n a -> Vector n b
+
+-- | <i>O(n)</i> Right-to-left scan
+postscanr :: (a -> b -> b) -> b -> Vector n a -> Vector n b
+
+-- | <i>O(n)</i> Right-to-left scan with strict accumulator
+postscanr' :: (a -> b -> b) -> b -> Vector n a -> Vector n b
+
+-- | <i>O(n)</i> Right-to-left Haskell-style scan
+scanr :: (a -> b -> b) -> b -> Vector n a -> Vector n b
+
+-- | <i>O(n)</i> Right-to-left Haskell-style scan with strict accumulator
+scanr' :: (a -> b -> b) -> b -> Vector n a -> Vector n b
+
+-- | <i>O(n)</i> Right-to-left scan over a non-empty vector
+scanr1 :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
+
+-- | <i>O(n)</i> Right-to-left scan over a non-empty vector with a strict
+--   accumulator
+scanr1' :: KnownNat n => (a -> a -> a) -> Vector (n + 1) a -> Vector (n + 1) a
+
+-- | <i>O(n)</i> Convert a vector to a list
+toList :: Vector n a -> [a]
+
+-- | <i>O(n)</i> Convert a list to a vector
+fromList :: KnownNat n => [a] -> Maybe (Vector n a)
+
+-- | <i>O(n)</i> Convert the first <tt>n</tt> elements of a list to a
+--   vector. The length of the resultant vector is inferred from the type.
+fromListN :: forall n a. KnownNat n => [a] -> Maybe (Vector n a)
+
+-- | <i>O(n)</i> Convert the first <tt>n</tt> elements of a list to a
+--   vector. The length of the resultant vector is given explicitly as a
+--   <a>Proxy</a> argument.
+fromListN' :: forall n a p. KnownNat n => p n -> [a] -> Maybe (Vector n a)
+
+-- | <i>O(n)</i> Takes a list and returns a continuation providing a vector
+--   with a size parameter corresponding to the length of the list.
+--   
+--   Essentially converts a list into a vector with the proper size
+--   parameter, determined at runtime.
+--   
+--   See <a>withSized</a>
+withSizedList :: forall a r. [a] -> (forall n. KnownNat n => Vector n a -> r) -> r
+
+-- | <i>O(n)</i> Yield an immutable copy of the mutable vector.
+freeze :: PrimMonad m => MVector n (PrimState m) a -> m (Vector n a)
+
+-- | <i>O(n)</i> Yield a mutable copy of the immutable vector.
+thaw :: PrimMonad m => Vector n a -> m (MVector n (PrimState m) a)
+
+-- | <i>O(n)</i> Copy an immutable vector into a mutable one.
+copy :: PrimMonad m => MVector n (PrimState m) a -> Vector n a -> m ()
+
+-- | <i>O(1)</i> Unsafely convert a mutable vector to an immutable one
+--   withouy copying. The mutable vector may not be used after this
+--   operation.
+unsafeFreeze :: PrimMonad m => MVector n (PrimState m) a -> m (Vector n a)
+
+-- | <i>O(n)</i> Unsafely convert an immutable vector to a mutable one
+--   without copying. The immutable vector may not be used after this
+--   operation.
+unsafeThaw :: PrimMonad m => Vector n a -> m (MVector n (PrimState m) a)
+
+-- | Convert a <a>Vector</a> into a <a>Vector</a> if it has the correct
+--   size, otherwise return Nothing.
+toSized :: forall n a. KnownNat n => Vector a -> Maybe (Vector n a)
+
+-- | Takes a <a>Vector</a> and returns a continuation providing a
+--   <a>Vector</a> with a size parameter <tt>n</tt> that is determined at
+--   runtime based on the length of the input vector.
+--   
+--   Essentially converts a <a>Vector</a> into a <a>Vector</a> with the
+--   correct size parameter <tt>n</tt>.
+withSized :: forall a r. Vector a -> (forall n. KnownNat n => Vector n a -> r) -> r
+fromSized :: Vector n a -> Vector a
+
+-- | Apply a function on unsized vectors to a sized vector. The function
+--   must preserve the size of the vector, this is not checked.
+withVectorUnsafe :: (Vector a -> Vector b) -> Vector n a -> Vector n b
