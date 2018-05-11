@@ -264,7 +264,7 @@ import Text.ParserCombinators.ReadPrec
 import GHC.Read
 import Data.Type.Equality
 import Unsafe.Coerce
-import qualified Data.Functor.Rep as Rep
+-- import qualified Data.Functor.Rep as Rep
 import Data.Distributive
 import Prelude
        hiding (length, replicate, (++), head, last, init, tail, take,
@@ -325,15 +325,16 @@ instance (Monoid m, VG.Vector v m, KnownNat n) => Monoid (Vector v n m) where
   mconcat vs = generate $ mconcat . flip fmap vs . flip index
 
 instance KnownNat n => Distributive (Vector Boxed.Vector n) where
-  distribute = Rep.distributeRep
+  -- distribute = Rep.distributeRep
+  distribute = undefined
   {-# inline distribute #-}
 
-instance KnownNat n => Rep.Representable (Vector Boxed.Vector n) where
-  type Rep (Vector Boxed.Vector n) = Finite n
-  tabulate = generate
-  {-# inline tabulate #-}
-  index = Data.Vector.Generic.Sized.index
-  {-# inline index #-}
+-- instance KnownNat n => Rep.Representable (Vector Boxed.Vector n) where
+--   type Rep (Vector Boxed.Vector n) = Finite n
+--   tabulate = generate
+--   {-# inline tabulate #-}
+--   index = Data.Vector.Generic.Sized.index
+--   {-# inline index #-}
 
 -- | /O(1)/ Yield the length of the vector as an 'Int'. This is more like
 -- 'natVal' than 'Data.Vector.length', extracting the value from the 'KnownNat'
